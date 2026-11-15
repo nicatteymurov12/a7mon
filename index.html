@@ -1097,10 +1097,10 @@ function showError(e) {
 const USB_ID = '__usb', SONY_VID = 0x054c, LV_HANDLE = 0xffffc002;
 const PTP_OK = 0x2001, PTP_SESSION_OPEN = 0x201e;
 const ANDROID = /Android/i.test(navigator.userAgent);
-const MSG_PC_REMOTE = 'Kamera PC Remote rejimində deyil. Kamerada MENU → Setup → USB Connection → PC Remote seçin, kabeli çıxarıb yenidən taxın.';
+const MSG_PC_REMOTE = 'Kamera PC Remote rejimində deyil. Kamerada MENU → Setup (alət çantası) → USB Connection → PC Remote seçin (Auto və ya Mass Storage yox), kabeli çıxarıb yenidən taxın.';
 const MSG_BUSY = 'Kameranı başqa proqram tutub. Telefonda: kabeli çıxarıb yenidən taxın, kameranı açan qalereya və ya fayl tətbiqini bağlayın. Kompüterdə bu yol işləmir, orada Imaging Edge Webcam mənbəyini seçin.';
 const MSG_NO_LV = 'Kamera qoşuldu, amma canlı görüntü göndərmir. Kameranın ekranında PC Remote yazısı görünür? Kameranı söndürüb yandırın və yenidən qoşun.';
-const MSG_TIMEOUT = 'Kamera cavab vermir. Kabeli çıxarıb yenidən taxın və Qoş düyməsini basın.';
+const MSG_TIMEOUT = 'Kamera cavab vermir. Kameranı söndürüb yandırın, kabeli çıxarıb yenidən taxın və Qoş düyməsini basın.';
 // a file opened from Telegram or Downloads (content://, file://) is not a proper site; WebUSB is only promised on https
 const SITE_OK = location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const MSG_FILE = 'Səhifə fayl kimi açılıb (Telegram və ya Yükləmələrdən). Belə açılanda kameraya qoşulmaq işləməyə bilər. Saytın https:// ilə başlayan ünvanını Chrome-da açın.';
@@ -1121,12 +1121,14 @@ class Ptp {
       if (!d.opened) await d.open();
       if (!d.configuration) await d.selectConfiguration(1);
     } catch (e) { throw new UsbError(MSG_BUSY); }
-    // the PTP interface: still-image class with a bulk pipe each way
+    // the PTP interface: still-image class (some firmwares say vendor class) with a bulk pipe each way.
+    // A mass-storage interface has bulk pipes too, but PTP sent there only stalls: that is Auto / Mass Storage mode.
     let pick = null;
     for (const itf of d.configuration.interfaces) for (const alt of itf.alternates) {
+      if (alt.interfaceClass !== 6 && alt.interfaceClass !== 0xff) continue;
       const i = alt.endpoints.find(e => e.type === 'bulk' && e.direction === 'in');
       const o = alt.endpoints.find(e => e.type === 'bulk' && e.direction === 'out');
-      if (i && o && (!pick || alt.interfaceClass === 6)) pick = {itf, alt, i, o};
+      if (i && o && (!pick || (alt.interfaceClass === 6 && pick.alt.interfaceClass !== 6))) pick = {itf, alt, i, o};
     }
     if (!pick) throw new UsbError(MSG_PC_REMOTE);
     try {
@@ -1134,21 +1136,35 @@ class Ptp {
       if (pick.itf.alternate.alternateSetting !== pick.alt.alternateSetting)
         await d.selectAlternateInterface(pick.itf.interfaceNumber, pick.alt.alternateSetting);
     } catch (e) { throw new UsbError(MSG_BUSY); }
+    this.itf = pick.itf.interfaceNumber;
     this.epIn = pick.i.endpointNumber;
     this.epOut = pick.o.endpointNumber;
     this.chunk = Math.max(512, pick.i.packetSize) * 128;  // always whole packets, or the transfer babbles
   }
+  // PTP class "Device Reset" and cleared pipes: drops a transaction or session an earlier page left half done
+  async recover() {
+    const d = this.dev;
+    try { await this.timed(d.controlTransferOut({requestType: 'class', recipient: 'interface', request: 0x66, value: 0, index: this.itf})); } catch (e) {}
+    for (const [dir, ep] of [['in', this.epIn], ['out', this.epOut]]) try { await d.clearHalt(dir, ep); } catch (e) {}
+    await sleep(300);
+  }
+  // the operation code goes into the message, so a screenshot shows which step the camera did not answer
+  late() {
+    const e = new UsbError(MSG_TIMEOUT + ' [' + (this.op || 0).toString(16) + ']');
+    e.timeout = true;
+    return e;
+  }
   timed(p) {
     let t;
-    const late = new Promise((_, no) => { t = setTimeout(() => no(new UsbError(MSG_TIMEOUT)), 6000); });
+    const late = new Promise((_, no) => { t = setTimeout(() => no(this.late()), 6000); });
     return Promise.race([p, late]).finally(() => clearTimeout(t));
   }
   // grows the read buffer to n bytes; one transfer may hold the end of one container and the next
   async take(n) {
     while (this.buf.length < n) {
       const r = await this.timed(this.dev.transferIn(this.epIn, this.chunk));
-      if (r.status === 'stall') { await this.dev.clearHalt('in', this.epIn); throw new UsbError(MSG_TIMEOUT); }
-      if (r.status !== 'ok') throw new UsbError(MSG_TIMEOUT);
+      if (r.status === 'stall') { await this.dev.clearHalt('in', this.epIn); throw this.late(); }
+      if (r.status !== 'ok') throw this.late();
       if (!r.data || !r.data.byteLength) continue;  // zero-length packet that closes a data phase
       const add = new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
       const nb = new Uint8Array(this.buf.length + add.length);
@@ -1160,7 +1176,7 @@ class Ptp {
     await this.take(12);
     const v = new DataView(this.buf.buffer, this.buf.byteOffset, 12);
     const len = v.getUint32(0, true), type = v.getUint16(4, true), code = v.getUint16(6, true), tid = v.getUint32(8, true);
-    if (len < 12 || len > 64e6) throw new UsbError(MSG_TIMEOUT);
+    if (len < 12 || len > 64e6) throw this.late();
     await this.take(len);
     const data = this.buf.subarray(12, len);
     this.buf = this.buf.slice(len);
@@ -1173,11 +1189,12 @@ class Ptp {
     return run;
   }
   async exec(code, params) {
+    this.op = code;
     const tid = this.tid++, len = 12 + 4 * params.length, v = new DataView(new ArrayBuffer(len));
     v.setUint32(0, len, true); v.setUint16(4, 1, true); v.setUint16(6, code, true); v.setUint32(8, tid, true);
     params.forEach((p, i) => v.setUint32(12 + 4 * i, p >>> 0, true));
     const w = await this.timed(this.dev.transferOut(this.epOut, v.buffer));
-    if (w.status !== 'ok') throw new UsbError(MSG_TIMEOUT);
+    if (w.status !== 'ok') throw this.late();
     let data = null;
     for (;;) {
       const c = await this.container();
@@ -1235,12 +1252,25 @@ async function startUsb(dev) {
   stop();
   await usbClosing;
   setStatus('Kameraya qoşulur…');
-  const p = new Ptp(dev), me = {dev, p, cv: document.createElement('canvas'), label: 'Sony · USB'};
+  const me = {dev, p: null, cv: document.createElement('canvas'), label: 'Sony · USB'};
   usb = me;
   try {
-    await p.open();
-    const r = await p.cmd(0x1002, [1]);  // OpenSession
-    if (r.code !== PTP_OK && r.code !== PTP_SESSION_OPEN) throw new UsbError(MSG_PC_REMOTE);
+    // a camera left mid-transfer by an earlier page stays silent: on a timeout, close (which aborts the
+    // transfer still waiting), reopen, reset the PTP state and try the session once more
+    let p;
+    for (let attempt = 0; ; attempt++) {
+      p = me.p = new Ptp(dev);
+      try {
+        await p.open();
+        if (attempt) await p.recover();
+        const r = await p.cmd(0x1002, [1]);  // OpenSession
+        if (r.code !== PTP_OK && r.code !== PTP_SESSION_OPEN) throw new UsbError(MSG_PC_REMOTE);
+        break;
+      } catch (e) {
+        if (attempt || !e.timeout || usb !== me) throw e;
+        try { await dev.close(); } catch (_) {}
+      }
+    }
     const info = parseDeviceInfo((await p.cmd(0x1001)).data || new Uint8Array(0));
     if (info.model) me.label = info.model + ' · USB';
     // Sony remote-control handshake; only answered in PC Remote mode
@@ -1294,7 +1324,7 @@ function usbClose() {
   if (!me) return;
   usb = null;
   usbClosing = (async () => {
-    try { await Promise.race([me.p.cmd(0x1003), sleep(1000)]); } catch (e) {}  // CloseSession
+    if (me.p) try { await Promise.race([me.p.cmd(0x1003), sleep(1000)]); } catch (e) {}  // CloseSession
     try { await me.dev.close(); } catch (e) {}
   })();
 }
