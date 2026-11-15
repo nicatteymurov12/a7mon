@@ -1,0 +1,1583 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>a7III Monitor</title>
+<style>
+:root{
+  --bg:#121212;--panel:#1b1b1b;--panel-2:#252525;--line:#333;
+  --text:#ececec;--muted:#9b9b9b;--accent:#f2a33a;--danger:#ff5a5a;--ok:#4cd28e;
+  --scope-bg:#0a0a0a;--radius:8px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;margin-right:4px;white-space:nowrap}
+.group{display:flex;align-items:center;gap:4px}
+.sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+button,select,label.btn{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover,select:hover,label.btn:hover{border-color:#555}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#111}
+button.primary{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600}
+button:disabled{opacity:.35;cursor:not-allowed}
+select{max-width:240px}
+label.inline{display:flex;align-items:center;gap:6px;color:var(--muted);white-space:nowrap}
+input[type=range]{accent-color:var(--accent);width:90px}
+.status{margin-left:auto;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px}
+.status.err{color:var(--danger)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)}
+.seg{display:inline-flex}
+.seg button{border-radius:0;margin-left:-1px;padding:4px 9px}
+.seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+.seg button:last-child{border-radius:0 6px 6px 0}
+
+.workspace{flex:1;min-height:0;display:flex;position:relative}
+main{position:relative;flex:1;min-width:0;display:grid;gap:8px;padding:8px}
+main[data-layout="stack"]{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,var(--hr,1fr))}
+main[data-layout="side"]{grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) minmax(0,var(--hr,1fr))}
+main[data-layout="scopes"]{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+/* the video must keep playing for analysis, so it is shrunk rather than display:none */
+main[data-layout="scopes"] .view{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
+main.noscopes{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+main.noscopes .view{position:relative;width:auto;height:auto;opacity:1;pointer-events:auto}
+main.noscopes .scopes{display:none}
+
+.view{position:relative;background:#000;border-radius:var(--radius);overflow:hidden;cursor:crosshair}
+.view video,.view canvas{position:absolute;inset:0;width:100%;height:100%}
+.view video{object-fit:contain}
+#ov{pointer-events:none}
+.hud{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px;pointer-events:none}
+.hud span{background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.18);border-radius:4px;padding:1px 6px;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.legend{position:absolute;left:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:2px;pointer-events:none;font-size:11px;font-variant-numeric:tabular-nums}
+.legend[hidden]{display:none}
+.legend span{padding:1px 6px;border-radius:3px;color:#000}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;color:var(--muted);padding:16px;background:#000;cursor:default}
+.empty[hidden]{display:none}
+.empty p{margin:0;max-width:440px}
+.empty .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+.scopes{display:flex;gap:8px;min-height:0;min-width:0}
+main[data-layout="side"] .scopes{flex-direction:column}
+.scope{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--scope-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.scope[hidden]{display:none}
+.scope h4{margin:0;padding:4px 10px;font-size:12px;font-weight:500;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;border-bottom:1px solid #1e1e1e;white-space:nowrap}
+.scope h4 .hs{display:flex;flex-wrap:wrap;gap:0 10px;font-variant-numeric:tabular-nums}
+.scope h4 b{color:var(--text);font-weight:500}
+.scope h4 .hb{display:flex;gap:4px}
+button.mini{padding:0 7px;font-size:11px;line-height:18px;border-radius:4px}
+.scope h4 .warn b{color:var(--danger)}
+.scope .cv{flex:1;min-height:0;position:relative}
+.scope canvas{position:absolute;inset:0;width:100%;height:100%}
+
+aside.tools{flex:0 0 290px;width:290px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto}
+aside.tools[hidden]{display:none}
+.sec{padding:10px 14px 12px;border-bottom:1px solid var(--line)}
+.sec h3{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.trow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap}
+.trow input[type=range]{flex:1;min-width:70px;width:auto}
+.trow output{min-width:2.8em;text-align:right;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.trow select{flex:1}
+.lbl{flex:0 0 76px;color:var(--muted);font-size:13px}
+.swatch{width:28px;height:26px;padding:0!important;background:var(--c)!important;border-color:#000!important}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent);position:relative;z-index:1}
+.hint{margin:4px 0 0;color:var(--muted);font-size:12px}
+.gpu-note{margin:10px 14px;padding:8px 10px;border:1px solid var(--danger);border-radius:6px;color:var(--danger);font-size:12px}
+.gpu-note[hidden]{display:none}
+
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:620px;max-height:85vh;padding:20px 24px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin:0 0 12px;font-size:18px}
+dialog h3{margin:16px 0 6px;font-size:14px;color:var(--accent)}
+dialog ol,dialog ul{padding-left:20px;margin:0}
+dialog li{margin-bottom:6px}
+dialog code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:13px}
+dialog kbd{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:12px;font-family:inherit}
+dialog form{margin-top:16px;text-align:right}
+
+@media (max-width:900px){
+  aside.tools{position:absolute;right:0;top:0;bottom:0;z-index:5;box-shadow:-8px 0 24px rgba(0,0,0,.5)}
+}
+@media (max-width:700px){
+  main[data-layout="side"]{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,var(--hr,1fr))}
+  main[data-layout="side"] .scopes{flex-direction:row}
+}
+/* phones, upright or sideways: the picture gets the room, the header shrinks to the essentials */
+@media (max-width:700px),(max-height:500px){
+  header{gap:6px;padding:6px 8px}
+  .brand,.sep,header label.inline{display:none}
+  header button,header select{padding:4px 8px;font-size:13px}
+  .seg button{padding:4px 7px}
+  .status{flex:1 1 120px;min-width:0;max-width:none;font-size:12px}
+  main{gap:6px;padding:6px}
+}
+@media (max-width:700px){
+  header .group{flex:1 1 100%}
+  header select{flex:1;min-width:0;max-width:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">a7III Monitor</span>
+  <div class="group">
+    <select id="device" aria-label="Görüntü mənbəyi"></select>
+    <button class="primary" id="connect">Qoş</button>
+  </div>
+  <span class="sep"></span>
+  <div class="seg" role="group" aria-label="Görünüş">
+    <button data-k="layout" data-v="stack" title="Görüntü yuxarıda, skoplar aşağıda (V)">Alt-alta</button>
+    <button data-k="layout" data-v="side" title="Görüntü solda, skoplar sağda (V)">Yan-yana</button>
+    <button data-k="layout" data-v="scopes" title="Yalnız skoplar (V)">Yalnız skoplar</button>
+  </div>
+  <label class="inline">Skop ölçüsü <input type="range" data-s="hr" min="0.3" max="3" step="0.1"></label>
+  <button data-t="tools" title="Alətlər paneli (T)">Alətlər</button>
+  <button id="fs" title="Tam ekran (F)">Tam ekran</button>
+  <button id="help" title="Kömək (?)">?</button>
+  <span class="status" id="status"><span class="dot" id="dot"></span><span id="statusText">Qoşulmayıb</span></span>
+</header>
+
+<div class="workspace">
+  <main id="main" data-layout="stack">
+    <section class="view" id="view">
+      <video id="video" playsinline muted></video>
+      <canvas id="gl"></canvas>
+      <canvas id="ov"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="legend" id="legend" hidden>
+        <span style="background:#8c1abf;color:#fff">0–2.5</span>
+        <span style="background:#2659ff;color:#fff">2.5–4</span>
+        <span style="background:#33cc40">38–44 · 18% boz</span>
+        <span style="background:#ff8cb3">52–56 · dəri</span>
+        <span style="background:#ffe61a">97–99</span>
+        <span style="background:#ff2619;color:#fff">99+</span>
+      </div>
+      <div class="empty" id="empty">
+        <p id="emptyMsg">Kamera qoşulmayıb.</p>
+        <div class="row">
+          <button class="primary" id="connect2">Kameranı qoş</button>
+          <button id="help2">Necə qoşmaq olar?</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="scopes" id="scopes">
+      <div class="scope" data-scope="sHist">
+        <h4><span>Histoqram</span><span class="hs"><span id="sLow">Qara <b>–</b></span><span id="sMean">Orta <b>–</b></span><span id="sHigh">Ağ <b>–</b></span></span></h4>
+        <div class="cv"><canvas id="cHist"></canvas></div>
+      </div>
+      <div class="scope" data-scope="sWave">
+        <h4><span>Waveform</span></h4>
+        <div class="cv"><canvas id="cWave"></canvas></div>
+      </div>
+      <div class="scope" data-scope="sParade">
+        <h4><span>RGB Parade</span></h4>
+        <div class="cv"><canvas id="cParade"></canvas></div>
+      </div>
+      <div class="scope square" data-scope="sVec">
+        <h4><span>Vektorskop</span><span class="hb">
+          <button class="mini" data-t="vecSkin" title="Dəri tonu xəttini yandır/söndür (S)">Dəri tonu</button>
+          <button class="mini" data-t="vecZoom" title="Vektorskopu 2× böyüt">2×</button>
+        </span></h4>
+        <div class="cv"><canvas id="cVec"></canvas></div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="tools" id="tools">
+    <p class="gpu-note" id="gpuNote" hidden>Bu brauzerdə WebGL2 yoxdur: zebra, false color, peaking, böyütmə, desqueeze, çevirmə və LUT işləmir. Chrome və ya Edge-in son versiyası ilə açın.</p>
+
+    <section class="sec">
+      <h3>Ekspozisiya</h3>
+      <div class="trow">
+        <button data-t="zebra" data-gpu title="Z">Zebra</button>
+        <input type="range" data-s="zebraLvl" min="50" max="100" step="1" aria-label="Zebra səviyyəsi" data-gpu>
+        <output data-o="zebraLvl"></output>
+      </div>
+      <div class="trow">
+        <button data-t="zebraLo" data-gpu>Kölgə zebrası</button>
+        <input type="range" data-s="zebraLoLvl" min="0" max="20" step="1" aria-label="Kölgə zebrası səviyyəsi" data-gpu>
+        <output data-o="zebraLoLvl"></output>
+      </div>
+      <div class="trow"><button data-t="falseColor" data-gpu title="C">False color</button></div>
+      <p class="hint">Yaşıl — 18% boz (orta ekspozisiya), çəhrayı — dəri tonu, sarı/qırmızı — yanmağa yaxın/yanmış, bənövşəyi/göy — tam qaranlıq.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Fokus</h3>
+      <div class="trow"><button data-t="peak" data-gpu title="P">Focus peaking</button></div>
+      <div class="trow">
+        <span class="lbl">Rəng</span>
+        <div class="seg">
+          <button class="swatch" data-k="peakColor" data-v="#ff3030" style="--c:#ff3030" aria-label="Qırmızı" data-gpu></button>
+          <button class="swatch" data-k="peakColor" data-v="#ffe14d" style="--c:#ffe14d" aria-label="Sarı" data-gpu></button>
+          <button class="swatch" data-k="peakColor" data-v="#3fa0ff" style="--c:#3fa0ff" aria-label="Göy" data-gpu></button>
+          <button class="swatch" data-k="peakColor" data-v="#ffffff" style="--c:#ffffff" aria-label="Ağ" data-gpu></button>
+        </div>
+      </div>
+      <div class="trow">
+        <span class="lbl">Həssaslıq</span>
+        <input type="range" data-s="peakSens" min="0" max="100" step="1" aria-label="Peaking həssaslığı" data-gpu>
+        <output data-o="peakSens"></output>
+      </div>
+      <div class="trow">
+        <span class="lbl">Böyütmə</span>
+        <div class="seg">
+          <button data-k="zoom" data-v="1" data-gpu title="M">1×</button>
+          <button data-k="zoom" data-v="2" data-gpu title="M">2×</button>
+          <button data-k="zoom" data-v="4" data-gpu title="M">4×</button>
+        </div>
+      </div>
+      <p class="hint">Şəklə iki dəfə klikləyin — o nöqtə böyüyür. Böyüdülmüş halda bir klik mərkəzi dəyişir.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Kadr</h3>
+      <div class="trow">
+        <span class="lbl">Çərçivə</span>
+        <select data-s="guide" aria-label="Çərçivə xətləri" title="G">
+          <option value="none">Yox</option>
+          <option value="2.39:1">2.39:1 (kino)</option>
+          <option value="2:1">2:1</option>
+          <option value="1.85:1">1.85:1</option>
+          <option value="16:9">16:9</option>
+          <option value="4:3">4:3</option>
+          <option value="1:1">1:1</option>
+          <option value="4:5">4:5 (Instagram)</option>
+          <option value="9:16">9:16 (Reels/TikTok)</option>
+        </select>
+      </div>
+      <div class="trow">
+        <button data-t="grid">Tor 1/3</button>
+        <button data-t="center">Mərkəz</button>
+        <button data-t="safe">Təhlükəsiz zona</button>
+      </div>
+      <div class="trow">
+        <span class="lbl">Desqueeze</span>
+        <div class="seg">
+          <button data-k="desq" data-v="1" data-gpu>1×</button>
+          <button data-k="desq" data-v="1.33" data-gpu>1.33</button>
+          <button data-k="desq" data-v="1.5" data-gpu>1.5</button>
+          <button data-k="desq" data-v="1.8" data-gpu>1.8</button>
+          <button data-k="desq" data-v="2" data-gpu>2×</button>
+        </div>
+      </div>
+      <div class="trow">
+        <span class="lbl">Çevir</span>
+        <button data-t="flipH" data-gpu>Güzgü</button>
+        <button data-t="flipV" data-gpu>Tərsinə</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h3>LUT</h3>
+      <div class="trow">
+        <button data-t="lutOn" id="lutBtn" data-gpu title="L">LUT</button>
+        <label class="btn">.cube yüklə<input type="file" id="lutFile" accept=".cube" hidden></label>
+        <button id="lutClear">Sil</button>
+      </div>
+      <p class="hint" id="lutName">LUT yüklənməyib. S-Log ilə çəkəndə normal rəngləri görmək üçün.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Skoplar</h3>
+      <div class="trow">
+        <button data-t="sHist" title="1">Histoqram</button>
+        <button data-t="sWave" title="2">Waveform</button>
+        <button data-t="sParade" title="3">RGB Parade</button>
+        <button data-t="sVec" title="4">Vektorskop</button>
+      </div>
+      <div class="trow">
+        <span class="lbl">Histoqram</span>
+        <div class="seg">
+          <button data-k="histMode" data-v="y">Parlaqlıq</button>
+          <button data-k="histMode" data-v="rgb">RGB</button>
+          <button data-k="histMode" data-v="split">Ayrı</button>
+        </div>
+      </div>
+      <div class="trow">
+        <span class="lbl">Şkala</span>
+        <div class="seg">
+          <button data-k="histStyle" data-v="lin">0–255</button>
+          <button data-k="histStyle" data-v="stop">Stop</button>
+        </div>
+        <button data-t="histLog" title="Kiçik dəyərləri də göstərir">Log</button>
+      </div>
+      <div class="trow">
+        <span class="lbl">Parlaqlıq</span>
+        <input type="range" data-s="gain" min="5" max="100" step="1" aria-label="Waveform və vektorskop parlaqlığı">
+        <output data-o="gain"></output>
+      </div>
+      <div class="trow">
+        <span class="lbl">Vektorskop</span>
+        <button data-t="vecSkin" title="S">Dəri tonu xətti</button>
+        <button data-t="vecZoom">2×</button>
+      </div>
+      <div class="trow">
+        <span class="lbl"></span>
+        <button data-t="vecColor">Rəngli iz</button>
+        <div class="seg">
+          <button data-k="vecTarget" data-v="75">75%</button>
+          <button data-k="vecTarget" data-v="100">100%</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<dialog id="helpDlg">
+  <h2>a7III Monitor — kömək</h2>
+  <h3>Android telefonla (USB kabel)</h3>
+  <ol>
+    <li>Səhifəni telefonda <b>Chrome</b> ilə, <b>https://</b> ilə başlayan ünvandan açın. Fayl kimi açanda birbaşa USB işləmir. iPhone-da bu yol yoxdur.</li>
+    <li>Kamerada: <code>MENU → Setup → USB Connection → PC Remote</code>. Menyuda <code>USB Power Supply</code> varsa, <code>Off</code> edin, yoxsa kamera telefonun batareyasından şarj olur.</li>
+    <li>Kameranı <b>USB-C OTG</b> kabeli və ya adapteri ilə telefona qoşun və yandırın.</li>
+    <li>Mənbə siyahısında <b>Sony a7III · USB kabel</b> seçin, <b>Qoş</b> basın, açılan siyahıdan kameranı seçin, Android icazə istəyəndə razılaşın.</li>
+  </ol>
+  <p class="hint">Bu yolda görüntü kameranın canlı görüntüsüdür: Full HD deyil, bir az gecikmə ola bilər. Ekspozisiya və kadr üçün kifayətdir. İcazə bir dəfə verilir, sonra kabeli taxanda özü qoşulur.</p>
+  <h3>Kompüterdə (Imaging Edge Webcam)</h3>
+  <ol>
+    <li>Sony-nin rəsmi saytından pulsuz <b>Imaging Edge Webcam</b> proqramını quraşdırın, sonra kompüteri yenidən başladın.</li>
+    <li>Kamerada: <code>MENU → Setup → USB Connection → PC Remote</code></li>
+    <li>Kamerada: <code>MENU → Camera Settings2 → Live View Display → Setting Effect ON</code> — belə olmasa, ekspozisiyanı dəyişəndə görüntü və skoplar dəyişməz.</li>
+    <li>Kameranı USB kabellə qoşun (USB-C portu tövsiyə olunur) və yandırın.</li>
+    <li><b>Qoş</b> düyməsinə basın, brauzer icazə istəyəndə <b>İcazə ver</b> seçin.</li>
+  </ol>
+  <h3>Alətlər</h3>
+  <ul>
+    <li><b>Zebra</b> — seçilən səviyyədən işıqlı yerlər tünd zolaqla örtülür. <b>Kölgə zebrası</b> çox qaranlıq yerləri göy zolaqla göstərir.</li>
+    <li><b>False color</b> — parlaqlığı rənglə göstərir. Rənglərin mənası görüntünün altında yazılıb.</li>
+    <li><b>Focus peaking</b> — fokusda olan kəskin kənarları rəngləyir. <b>Böyütmə</b> ilə fokusu dəqiq yoxlayın.</li>
+    <li><b>Çərçivə, tor, mərkəz, təhlükəsiz zona</b> — kadr qurmaq üçün xətlər.</li>
+    <li><b>Desqueeze</b> — anamorfik linza ilə çəkəndə görüntünü düzgün enə açır.</li>
+    <li><b>LUT</b> — S-Log2/S-Log3 ilə çəkəndə <code>.cube</code> fayl yükləyib normal rəngləri görə bilərsiniz.</li>
+    <li><b>Histoqram</b> — <i>Stop</i> şkalası parlaqlığı 18% boza nisbətən ekspozisiya stopları ilə göstərir (S-Log-da düzgün deyil).</li>
+    <li><b>Waveform</b> — şəklin hər sütununun parlaqlığı (0–100%). <b>RGB Parade</b> — eyni şey hər rəng üçün ayrıca, ağ balansını yoxlamaq üçün.</li>
+    <li><b>Vektorskop</b> — DaVinci Resolve üslubunda: rənglərin istiqaməti və doyğunluğu, dərəcə şkalası, 75% və ya 100% rəng hədəfləri (R, Mg, B, Cy, G, Yl). Narıncı xətt dəri tonu xəttidir: insanların dərisi bu xəttin üstündə olmalıdır. Onu <kbd>S</kbd> və ya kartdakı <b>Dəri tonu</b> düyməsi ilə yandırıb-söndürmək olar. <b>2×</b> az doymuş rəngləri böyüdür, <b>Rəngli iz</b> izi rəngli göstərir.</li>
+  </ul>
+  <h3>Qısayollar</h3>
+  <p><kbd>Z</kbd> zebra · <kbd>C</kbd> false color · <kbd>P</kbd> peaking · <kbd>M</kbd> böyütmə · <kbd>G</kbd> çərçivə · <kbd>L</kbd> LUT · <kbd>S</kbd> dəri tonu xətti · <kbd>1</kbd>–<kbd>4</kbd> skoplar · <kbd>V</kbd> görünüş · <kbd>T</kbd> alətlər · <kbd>F</kbd> tam ekran</p>
+  <h3>Bilmək lazım olanlar</h3>
+  <ul>
+    <li>Alətlər və skoplar kameranın siqnalı ilə (LUT-dan əvvəl) işləyir. Kameranın histoqramı kimi təxmini göstəricidir, RAW deyil.</li>
+    <li>ISO, diafraqma, çəkiliş sürəti və video yazma kameranın özündən idarə olunur — bu səhifə kameranı idarə etmir.</li>
+    <li>Kameranı eyni anda yalnız bir proqram istifadə edə bilər. Imaging Edge Desktop, Zoom, Teams açıqdırsa, bağlayın.</li>
+    <li>Kameranın proqram təminatına heç nə yazılmır, sistem dəyişmir.</li>
+  </ul>
+  <form method="dialog"><button class="primary">Bağla</button></form>
+</dialog>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const video = $('video'), glc = $('gl'), ov = $('ov'), octx = ov.getContext('2d');
+const main = $('main'), sel = $('device'), view = $('view');
+const work = document.createElement('canvas'), wctx = work.getContext('2d', {willReadFrequently: true});
+const DEMO = location.hash === '#demo', DEMO_ID = '__demo';
+const SCOPES = ['sHist', 'sWave', 'sParade', 'sVec'];
+const LAYOUTS = ['stack', 'side', 'scopes'];
+const GUIDES = ['none', '2.39:1', '2:1', '1.85:1', '16:9', '4:3', '1:1', '4:5', '9:16'];
+const ZOOMS = [1, 2, 4];
+const COLORS = {y: '#e8e8e8', r: '#ff4040', g: '#36d957', b: '#3f84ff'};
+const LABELS = {y: 'Parlaqlıq', r: 'Qırmızı', g: 'Yaşıl', b: 'Göy'};
+const FMT = {zebraLvl: v => v + '%', zebraLoLvl: v => v + '%', peakSens: v => v, gain: v => v};
+
+const DEF = {
+  layout: 'stack', hr: 1, tools: innerWidth > 900,  // on a phone the panel would cover the picture
+  zebra: false, zebraLvl: 95, zebraLo: false, zebraLoLvl: 5, falseColor: false,
+  peak: false, peakColor: '#ff3030', peakSens: 55, zoom: 1,
+  guide: 'none', grid: false, center: false, safe: false, desq: 1, flipH: false, flipV: false,
+  lutOn: false,
+  sHist: true, sWave: false, sParade: false, sVec: false,
+  histMode: 'rgb', histStyle: 'lin', histLog: false, gain: 55, deviceId: '',
+  vecSkin: true, vecZoom: false, vecColor: false, vecTarget: 75
+};
+const state = Object.assign({}, DEF, load());
+state.zoom = 1;
+let center = [.5, .5];
+function load() { try { return JSON.parse(localStorage.getItem('a7mon') || '{}'); } catch (e) { return {}; } }
+function save() { try { const s = Object.assign({}, state); delete s.zoom; localStorage.setItem('a7mon', JSON.stringify(s)); } catch (e) {} }
+
+let stream = null, demoRaf = 0, raf = 0, userPicked = false;
+let stats = {low: 0, high: 0, mean: 0, ready: false};
+
+// ================= WebGL view =================
+const VERT_SRC = `#version 300 es
+in vec2 p; out vec2 vUv;
+void main(){ vUv = vec2(p.x*.5+.5, .5-p.y*.5); gl_Position = vec4(p, 0., 1.); }`;
+const FS = `#version 300 es
+precision highp float;
+precision highp sampler3D;
+in vec2 vUv; out vec4 o;
+uniform sampler2D uTex; uniform sampler3D uLut;
+uniform float uLutOn, uLutN, uZoom, uFalse, uPeak, uPeakTh, uZHi, uZHiLvl, uZLo, uZLoLvl, uTime;
+uniform vec2 uCenter, uFlip, uTexel;
+uniform vec3 uPeakCol;
+float Y(vec3 c){ return dot(c, vec3(.2126, .7152, .0722)); }
+float L(vec2 uv){ return Y(texture(uTex, uv).rgb); }
+vec3 falseColor(float y){
+  float v = y * 100.;
+  if (v < 2.5) return vec3(.55, .1, .75);
+  if (v < 4.) return vec3(.15, .35, 1.);
+  if (v >= 38. && v < 44.) return vec3(.2, .8, .25);
+  if (v >= 52. && v < 56.) return vec3(1., .55, .7);
+  if (v >= 99.) return vec3(1., .15, .1);
+  if (v >= 97.) return vec3(1., .9, .1);
+  return vec3(y);
+}
+void main(){
+  vec2 f = vUv;
+  if (uFlip.x > 0.) f.x = 1. - f.x;
+  if (uFlip.y > 0.) f.y = 1. - f.y;
+  vec2 uv = uCenter + (f - .5) / uZoom;
+  vec3 c = texture(uTex, uv).rgb;
+  float y = Y(c);
+  vec3 d = c;
+  if (uLutOn > 0.) d = texture(uLut, clamp(c, 0., 1.) * (uLutN - 1.) / uLutN + .5 / uLutN).rgb;
+  if (uFalse > 0.) d = falseColor(y);
+  float t = uTime * 24.;
+  if (uZHi > 0. && y >= uZHiLvl - .001 && mod(floor((gl_FragCoord.x + gl_FragCoord.y + t) / 5.), 2.) < 1.) d = mix(d, vec3(0.), .75);
+  if (uZLo > 0. && y <= uZLoLvl + .001 && mod(floor((gl_FragCoord.x - gl_FragCoord.y + t) / 5.), 2.) < 1.) d = mix(d, vec3(.2, .45, 1.), .85);
+  if (uPeak > 0.) {
+    vec2 e = uTexel;
+    float tl = L(uv + vec2(-e.x, -e.y)), tc = L(uv + vec2(0., -e.y)), tr = L(uv + vec2(e.x, -e.y));
+    float ml = L(uv + vec2(-e.x, 0.)), mr = L(uv + vec2(e.x, 0.));
+    float bl = L(uv + vec2(-e.x, e.y)), bc = L(uv + vec2(0., e.y)), br = L(uv + vec2(e.x, e.y));
+    float gx = (tr + 2.*mr + br) - (tl + 2.*ml + bl);
+    float gy = (bl + 2.*bc + br) - (tl + 2.*tc + tr);
+    if (length(vec2(gx, gy)) > uPeakTh) d = uPeakCol;
+  }
+  o = vec4(d, 1.);
+}`;
+
+const IDENTITY_LUT = new Float32Array([0,0,0, 1,0,0, 0,1,0, 1,1,0, 0,0,1, 1,0,1, 0,1,1, 1,1,1]);
+let gl = null, U = {}, vtex = null, ltex = null, lut = null;
+try {
+  gl = glc.getContext('webgl2', {alpha: false, antialias: false});
+  if (gl) initGL();
+} catch (e) { console.warn('WebGL2:', e); gl = null; }
+const GL_OK = !!gl;
+
+function initGL() {
+  const sh = (type, src) => {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT_SRC));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  ['uTex', 'uLut', 'uLutOn', 'uLutN', 'uZoom', 'uFalse', 'uPeak', 'uPeakTh', 'uZHi', 'uZHiLvl', 'uZLo', 'uZLoLvl', 'uTime',
+   'uCenter', 'uFlip', 'uTexel', 'uPeakCol'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  gl.uniform1i(U.uTex, 0);
+  gl.uniform1i(U.uLut, 1);
+  vtex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, vtex);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]])
+    gl.texParameteri(gl.TEXTURE_2D, k, v);
+  ltex = gl.createTexture();
+  uploadLut(2, IDENTITY_LUT);
+}
+
+function uploadLut(n, data) {
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_3D, ltex);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]])
+    gl.texParameteri(gl.TEXTURE_3D, k, v);
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGB16F, n, n, n, 0, gl.RGB, gl.FLOAT, data);
+  gl.activeTexture(gl.TEXTURE0);
+}
+
+const hexCache = {};
+function hex(h) {
+  return hexCache[h] || (hexCache[h] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255));
+}
+
+// Where the picture sits inside a W×H box (device pixels), honouring desqueeze
+function imageRect(W, H) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh || W < 2 || H < 2) return null;
+  const ar = vw * (GL_OK ? state.desq : 1) / vh;
+  let w = W, h = W / ar;
+  if (h > H) { h = H; w = H * ar; }
+  w = Math.round(w); h = Math.round(h);
+  return {x: Math.round((W - w) / 2), y: Math.round((H - h) / 2), w, h};
+}
+
+function render(t) {
+  const W = glc.width, H = glc.height;
+  gl.viewport(0, 0, W, H);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  const r = imageRect(W, H);
+  if (!r) return;
+  gl.viewport(r.x, H - r.y - r.h, r.w, r.h);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, vtex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+  gl.uniform2f(U.uCenter, center[0], center[1]);
+  gl.uniform1f(U.uZoom, state.zoom);
+  gl.uniform2f(U.uFlip, state.flipH ? 1 : 0, state.flipV ? 1 : 0);
+  gl.uniform2f(U.uTexel, 1 / video.videoWidth, 1 / video.videoHeight);
+  gl.uniform1f(U.uLutOn, state.lutOn && lut ? 1 : 0);
+  gl.uniform1f(U.uLutN, lut ? lut.n : 2);
+  gl.uniform1f(U.uFalse, state.falseColor ? 1 : 0);
+  gl.uniform1f(U.uPeak, state.peak ? 1 : 0);
+  gl.uniform1f(U.uPeakTh, 0.9 - 0.78 * state.peakSens / 100);
+  gl.uniform3fv(U.uPeakCol, hex(state.peakColor));
+  gl.uniform1f(U.uZHi, state.zebra ? 1 : 0);
+  gl.uniform1f(U.uZHiLvl, state.zebraLvl / 100);
+  gl.uniform1f(U.uZLo, state.zebraLo ? 1 : 0);
+  gl.uniform1f(U.uZLoLvl, state.zebraLoLvl / 100);
+  gl.uniform1f(U.uTime, t);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+function clearView() {
+  if (GL_OK) { gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  octx.clearRect(0, 0, ov.width, ov.height);
+}
+
+// ================= overlay: guides, grid, zoom map =================
+function drawOverlay() {
+  const c = octx, W = ov.width, H = ov.height;
+  c.clearRect(0, 0, W, H);
+  const r = imageRect(W, H);
+  if (!r) return;
+  const d = window.devicePixelRatio || 1, lw = Math.max(1, d);
+  let f = r;
+  if (state.guide !== 'none') {
+    const [a, b] = state.guide.split(':').map(Number), ar = a / b;
+    let gw = r.w, gh = r.w / ar;
+    if (gh > r.h) { gh = r.h; gw = r.h * ar; }
+    f = {x: r.x + (r.w - gw) / 2, y: r.y + (r.h - gh) / 2, w: gw, h: gh};
+    c.fillStyle = 'rgba(0,0,0,.6)';
+    c.fillRect(r.x, r.y, r.w, f.y - r.y);
+    c.fillRect(r.x, f.y + f.h, r.w, r.y + r.h - f.y - f.h);
+    c.fillRect(r.x, f.y, f.x - r.x, f.h);
+    c.fillRect(f.x + f.w, f.y, r.x + r.w - f.x - f.w, f.h);
+    c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = lw;
+    c.strokeRect(f.x, f.y, f.w, f.h);
+  }
+  c.lineWidth = lw;
+  if (state.grid) {
+    c.strokeStyle = 'rgba(255,255,255,.45)';
+    c.beginPath();
+    for (let k = 1; k < 3; k++) {
+      const x = f.x + f.w * k / 3, y = f.y + f.h * k / 3;
+      c.moveTo(x, f.y); c.lineTo(x, f.y + f.h);
+      c.moveTo(f.x, y); c.lineTo(f.x + f.w, y);
+    }
+    c.stroke();
+  }
+  if (state.safe) {
+    c.strokeStyle = 'rgba(255,255,255,.55)';
+    c.setLineDash([6 * d, 4 * d]);
+    c.strokeRect(f.x + f.w * .05, f.y + f.h * .05, f.w * .9, f.h * .9);
+    c.setLineDash([]);
+  }
+  if (state.center) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2, s = 14 * d;
+    c.strokeStyle = 'rgba(255,255,255,.85)';
+    c.beginPath(); c.moveTo(cx - s, cy); c.lineTo(cx + s, cy); c.moveTo(cx, cy - s); c.lineTo(cx, cy + s); c.stroke();
+  }
+  if (GL_OK && state.zoom > 1) {
+    // mini-map of the magnified area
+    const mw = Math.round(96 * d), mh = Math.round(mw * r.h / r.w), mx = r.x + r.w - mw - 10 * d, my = r.y + r.h - mh - 10 * d;
+    const h = .5 / state.zoom;
+    let x0 = center[0] - h, y0 = center[1] - h;
+    if (state.flipH) x0 = 1 - center[0] - h;
+    if (state.flipV) y0 = 1 - center[1] - h;
+    c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(mx, my, mw, mh);
+    c.strokeStyle = 'rgba(255,255,255,.6)'; c.strokeRect(mx, my, mw, mh);
+    c.strokeStyle = '#f2a33a'; c.lineWidth = Math.max(1, 1.5 * d);
+    c.strokeRect(mx + x0 * mw, my + y0 * mh, mw * 2 * h, mh * 2 * h);
+  }
+}
+
+// ================= analysis (scopes) =================
+const bins = {r: new Uint32Array(256), g: new Uint32Array(256), b: new Uint32Array(256), y: new Uint32Array(256)};
+const sm = {r: new Float32Array(256), g: new Float32Array(256), b: new Float32Array(256), y: new Float32Array(256)};
+let AW = 0, AH = 0, PW = 0, wave = null, parade = null, waveImg = null, paradeImg = null;
+// Vectorscope accumulates into a VS×VS grid; the 100% chroma circle has radius VR
+const VS = 512, VC = VS / 2, VR = VC * 0.82;
+const vec = new Uint32Array(VS * VS);
+let seed = 12345;
+const waveCv = document.createElement('canvas'), paradeCv = document.createElement('canvas'), vecCv = document.createElement('canvas');
+vecCv.width = vecCv.height = VS;
+const vecImg = vecCv.getContext('2d').createImageData(VS, VS);
+const vecK = () => VR / 127.5 * (state.vecZoom ? 2 : 1); // grid px per 8-bit chroma unit
+const VEC_TARGETS = [['R', [1, 0, 0], '#e05a5a'], ['Mg', [1, 0, 1], '#d45ad4'], ['B', [0, 0, 1], '#6a86ff'],
+                     ['Cy', [0, 1, 1], '#55cccc'], ['G', [0, 1, 0], '#5ccc5c'], ['Yl', [1, 1, 0], '#d4d455']];
+
+// colourised trace: every dot takes the hue it represents
+const vecTint = new Uint8Array(VS * VS * 3);
+let tintK = 0;
+function buildTint(K) {
+  tintK = K;
+  const cl = v => Math.max(0, Math.min(255, v)) * .65 + 255 * .35;
+  for (let vy = 0; vy < VS; vy++) for (let vx = 0; vx < VS; vx++) {
+    const cb = (vx - VC) / K, cr = (VC - vy) / K, Yv = 150;
+    const R = Yv + 1.5748 * cr, B = Yv + 1.8556 * cb, G = (Yv - 0.2126 * R - 0.0722 * B) / 0.7152;
+    const i = (vy * VS + vx) * 3;
+    vecTint[i] = cl(R); vecTint[i + 1] = cl(G); vecTint[i + 2] = cl(B);
+  }
+}
+
+const ink = new Uint8Array(1024);
+let inkGain = -1;
+function updInk() {
+  if (inkGain === state.gain) return;
+  inkGain = state.gain;
+  const gk = 0.02 + Math.pow(state.gain / 100, 2) * 1.5;
+  for (let v = 1; v < 1024; v++) { const a = v * gk; ink[v] = Math.round(255 * a / (1 + a)); }
+}
+
+// stop-based histogram buckets: −8 … +2.5 stops around 18% grey
+const STOP_MIN = -8, STOP_MAX = 2.5, STOP_STEP = 1 / 6, NB = Math.round((STOP_MAX - STOP_MIN) / STOP_STEP);
+const binBucket = new Uint8Array(256);
+for (let v = 1; v < 256; v++) {
+  const x = v / 255, lin = x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  binBucket[v] = Math.max(0, Math.min(NB - 1, Math.floor((Math.log2(lin / 0.18) - STOP_MIN) / STOP_STEP)));
+}
+
+function analyse() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return;
+  const W = Math.min(640, vw), H = Math.max(1, Math.round(W * vh / vw));
+  if (W !== AW || H !== AH) {
+    AW = work.width = W; AH = work.height = H; PW = W >> 1;
+    wave = new Uint32Array(W * 256); parade = new Uint32Array(3 * PW * 256);
+    waveCv.width = W; waveCv.height = 256; waveImg = waveCv.getContext('2d').createImageData(W, 256);
+    paradeCv.width = 3 * PW; paradeCv.height = 256; paradeImg = paradeCv.getContext('2d').createImageData(3 * PW, 256);
+  }
+  updInk();
+  wctx.drawImage(video, 0, 0, W, H);
+  const d = wctx.getImageData(0, 0, W, H).data;
+  const R = bins.r, G = bins.g, B = bins.b, Yb = bins.y;
+  R.fill(0); G.fill(0); B.fill(0); Yb.fill(0);
+  const doW = state.sWave, doP = state.sParade, doV = state.sVec, P3 = 3 * PW;
+  const K = vecK(), k1 = K / 1.8556, k2 = K / 1.5748;
+  if (doW) wave.fill(0);
+  if (doP) parade.fill(0);
+  if (doV) vec.fill(0);
+  let sum = 0, low = 0, high = 0;
+  for (let yy = 0, i = 0; yy < H; yy++) {
+    for (let x = 0; x < W; x++, i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const l = (r * 54 + g * 183 + b * 19) >> 8; // Rec.709 luma
+      R[r]++; G[g]++; B[b]++; Yb[l]++; sum += l;
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+      if (mx >= 253) high++; else if (mx <= 2) low++;
+      if (doW) wave[(255 - l) * W + x]++;
+      if (doP) {
+        const px = x >> 1;
+        parade[(255 - r) * P3 + px]++;
+        parade[(255 - g) * P3 + PW + px]++;
+        parade[(255 - b) * P3 + 2 * PW + px]++;
+      }
+      if (doV) {
+        // ±½ code-value dither hides the 8-bit lattice, most visible at 2×
+        seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+        const jx = ((seed >>> 16) & 255) / 256 - .5, jy = (seed & 255) / 256 - .5;
+        const vx = (VC + (b - l + jx) * k1) | 0, vy = (VC - (r - l + jy) * k2) | 0;
+        if (vx >= 0 && vx < VS && vy >= 0 && vy < VS) vec[vy * VS + vx]++;
+      }
+    }
+  }
+  const n = W * H, k = 0.45;
+  for (const ch of ['r', 'g', 'b', 'y']) {
+    const s = sm[ch], h = bins[ch];
+    for (let j = 0; j < 256; j++) s[j] = stats.ready ? s[j] + (h[j] / n - s[j]) * k : h[j] / n;
+  }
+  stats = {low: low / n * 100, high: high / n * 100, mean: sum / n, ready: true};
+  if (doW) paintTrace(wave, waveImg, waveCv, () => [.78, 1, .82]);
+  if (doP) {
+    const tints = [[1, .3, .3], [.35, 1, .4], [.4, .6, 1]];
+    paintTrace(parade, paradeImg, paradeCv, i => tints[Math.min(2, ((i % P3) / PW) | 0)]);
+  }
+  if (doV) {
+    const colored = state.vecColor, o = vecImg.data;
+    if (colored && tintK !== K) buildTint(K);
+    for (let i = 0, j = 0; i < VS * VS; i++, j += 4) {
+      const v = vec[i], I = ink[v > 1023 ? 1023 : v];
+      if (!I) { o[j] = o[j + 1] = o[j + 2] = 0; }
+      else if (colored) { const f = I / 255, t = i * 3; o[j] = vecTint[t] * f; o[j + 1] = vecTint[t + 1] * f; o[j + 2] = vecTint[t + 2] * f; }
+      else { o[j] = I * .92; o[j + 1] = I * .96; o[j + 2] = I; }
+      o[j + 3] = 255;
+    }
+    vecCv.getContext('2d').putImageData(vecImg, 0, 0);
+  }
+  updateStats();
+}
+
+function paintTrace(counts, img, cv, tintAt) {
+  const o = img.data;
+  for (let i = 0, j = 0; i < counts.length; i++, j += 4) {
+    const v = counts[i], I = ink[v > 1023 ? 1023 : v];
+    if (!I) { o[j] = o[j + 1] = o[j + 2] = 0; o[j + 3] = 255; continue; }
+    const t = tintAt(i);
+    o[j] = I * t[0]; o[j + 1] = I * t[1]; o[j + 2] = I * t[2]; o[j + 3] = 255;
+  }
+  cv.getContext('2d').putImageData(img, 0, 0);
+}
+
+let lastDom = 0;
+function updateStats() {
+  const now = performance.now();
+  if (now - lastDom < 200) return;
+  lastDom = now;
+  setStat('sLow', stats.low.toFixed(1) + '%', stats.low >= 0.5);
+  setStat('sHigh', stats.high.toFixed(1) + '%', stats.high >= 0.5);
+  setStat('sMean', Math.round(stats.mean / 2.55) + '%', false);
+}
+function setStat(id, txt, warn) {
+  const el = $(id);
+  el.querySelector('b').textContent = txt;
+  el.classList.toggle('warn', warn);
+}
+
+// ================= scope drawing =================
+function drawScopes() {
+  if (state.sHist) drawHist();
+  if (state.sWave) drawTrace($('cWave'), waveCv, false);
+  if (state.sParade) drawTrace($('cParade'), paradeCv, true);
+  if (state.sVec) drawVec();
+}
+
+// light smoothing so the histogram reads as a continuous shape; end bins (clipping) stay untouched
+function smooth(a) {
+  const n = a.length, o = new Float32Array(n), k = [1, 4, 6, 4, 1];
+  o[0] = a[0]; o[n - 1] = a[n - 1];
+  for (let i = 1; i < n - 1; i++) {
+    let s = 0;
+    for (let t = -2; t <= 2; t++) s += a[Math.min(n - 2, Math.max(1, i + t))] * k[t + 2];
+    o[i] = s / 16;
+  }
+  return o;
+}
+function series(ch) {
+  const a = sm[ch];
+  if (state.histStyle !== 'stop') return smooth(a);
+  const o = new Float32Array(NB);
+  for (let v = 0; v < 256; v++) o[binBucket[v]] += a[v];
+  return smooth(o);
+}
+
+function drawHist() {
+  const cv = $('cHist'), c = cv.getContext('2d'), w = cv.width, h = cv.height, d = window.devicePixelRatio || 1;
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+  c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, w, h);
+  const stop = state.histStyle === 'stop';
+  const rows = state.histMode === 'split' ? [['y'], ['r'], ['g'], ['b']] : state.histMode === 'y' ? [['y']] : [['r', 'g', 'b']];
+  const pad = Math.round(8 * d), lab = stop ? Math.round(14 * d) : 0, gap = Math.round(6 * d);
+  const x0 = pad, w0 = w - pad * 2;
+  const rh = (h - pad * 2 - lab - gap * (rows.length - 1)) / rows.length;
+  if (rh <= 2 || w0 <= 2) return;
+  rows.forEach((chs, ri) => {
+    const y0 = pad + ri * (rh + gap);
+    histGrid(c, x0, y0, w0, rh, d, stop, ri === rows.length - 1 ? lab : 0, ri === 0);
+    if (rows.length > 1) {
+      c.font = Math.round(11 * d) + 'px Segoe UI, sans-serif';
+      c.fillStyle = COLORS[chs[0]];
+      c.fillText(LABELS[chs[0]], x0 + 6 * d, y0 + 14 * d);
+    }
+    if (!stats.ready) return;
+    const ser = chs.map(series), N = ser[0].length;
+    let norm = 0;
+    for (const a of ser) for (let i = 1; i < N - 1; i++) if (a[i] > norm) norm = a[i];
+    if (norm <= 0) for (const a of ser) norm = Math.max(norm, a[0], a[N - 1]);
+    if (norm <= 0) return;
+    c.save();
+    if (chs.length > 1) c.globalCompositeOperation = 'lighter';
+    ser.forEach((a, i) => plot(c, a, x0, y0, w0, rh, COLORS[chs[i]], norm, chs.length > 1, d));
+    c.restore();
+  });
+  if (stats.ready) {
+    const bw = Math.round(4 * d);
+    c.fillStyle = '#ff5a5a';
+    if (stats.low >= 0.5) c.fillRect(0, 0, bw, h);
+    if (stats.high >= 0.5) c.fillRect(w - bw, 0, bw, h);
+  }
+}
+
+function histGrid(c, x0, y0, w, h, d, stop, lab, first) {
+  c.save();
+  c.fillStyle = '#111'; c.fillRect(x0, y0, w, h);
+  c.strokeStyle = '#242424'; c.lineWidth = 1;
+  c.beginPath();
+  for (let i = 1; i < 4; i++) { const y = Math.round(y0 + h * i / 4) + .5; c.moveTo(x0, y); c.lineTo(x0 + w, y); }
+  let gx;
+  if (stop) {
+    for (let s = Math.ceil(STOP_MIN); s <= STOP_MAX; s++) {
+      const x = Math.round(x0 + (s - STOP_MIN) / (STOP_MAX - STOP_MIN) * w) + .5;
+      if (s === 0) gx = x; else { c.moveTo(x, y0); c.lineTo(x, y0 + h); }
+    }
+  } else {
+    for (let i = 1; i < 10; i++) { const x = Math.round(x0 + w * i / 10) + .5; c.moveTo(x, y0); c.lineTo(x, y0 + h); }
+    gx = Math.round(x0 + w * 118.5 / 256) + .5; // 18% grey ≈ sRGB 118
+  }
+  c.stroke();
+  c.setLineDash([4 * d, 4 * d]);
+  c.strokeStyle = '#5c5c5c';
+  c.beginPath(); c.moveTo(gx, y0); c.lineTo(gx, y0 + h); c.stroke();
+  c.setLineDash([]);
+  c.font = Math.round(10 * d) + 'px Segoe UI, sans-serif';
+  c.fillStyle = '#6a6a6a';
+  if (first) c.fillText('18%', gx + 4 * d, y0 + 12 * d);
+  if (lab) {
+    c.textAlign = 'center';
+    for (let s = Math.ceil(STOP_MIN); s <= STOP_MAX; s++) {
+      const x = x0 + (s - STOP_MIN) / (STOP_MAX - STOP_MIN) * w;
+      c.fillText(s > 0 ? '+' + s : String(s), x, y0 + h + 11 * d);
+    }
+  }
+  c.restore();
+}
+
+function plot(c, a, x0, y0, w, h, color, norm, overlay, d) {
+  const N = a.length, logN = Math.log1p(norm * 1e4);
+  const val = v => Math.min(1, state.histLog ? Math.log1p(v * 1e4) / logN : v / norm);
+  const px = i => x0 + (i + 0.5) / N * w;
+  const py = i => y0 + h - val(a[i]) * h;
+  const trace = () => { c.lineTo(x0, py(0)); for (let i = 0; i < N; i++) c.lineTo(px(i), py(i)); c.lineTo(x0 + w, py(N - 1)); };
+  c.beginPath(); c.moveTo(x0, y0 + h); trace(); c.lineTo(x0 + w, y0 + h); c.closePath();
+  c.globalAlpha = overlay ? 0.6 : 0.5;
+  c.fillStyle = color; c.fill();
+  c.beginPath(); c.moveTo(x0, py(0)); trace();
+  c.globalAlpha = 1;
+  c.lineWidth = Math.max(1, 1.5 * d);
+  c.lineJoin = 'round';
+  c.strokeStyle = color; c.stroke();
+}
+
+function drawTrace(cv, img, isParade) {
+  const c = cv.getContext('2d'), w = cv.width, h = cv.height, d = window.devicePixelRatio || 1;
+  c.globalCompositeOperation = 'source-over';
+  c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, w, h);
+  const padL = Math.round(30 * d), pad = Math.round(8 * d), x0 = padL, y0 = pad, pw = w - padL - pad, ph = h - pad * 2;
+  if (pw < 4 || ph < 4) return;
+  c.font = Math.round(10 * d) + 'px Segoe UI, sans-serif';
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  c.lineWidth = 1;
+  for (let p = 0; p <= 100; p += 10) {
+    const y = Math.round(y0 + ph * (1 - p / 100)) + .5;
+    c.strokeStyle = p % 50 ? '#1e1e1e' : '#343434';
+    c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + pw, y); c.stroke();
+    if (p % 50 === 0) { c.fillStyle = '#6a6a6a'; c.fillText(p, x0 - 6 * d, y); }
+  }
+  c.textAlign = 'start'; c.textBaseline = 'alphabetic';
+  if (stats.ready && img.width) {
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.imageSmoothingEnabled = true;
+    c.drawImage(img, x0, y0, pw, ph);
+    c.restore();
+  }
+  if (isParade) {
+    c.strokeStyle = '#343434';
+    c.beginPath();
+    for (let k = 1; k < 3; k++) { const x = Math.round(x0 + pw * k / 3) + .5; c.moveTo(x, y0); c.lineTo(x, y0 + ph); }
+    c.stroke();
+  }
+}
+
+// Resolve-style graticule: degree ring, axis ticks, 75%/100% targets, optional skin-tone line
+function drawVec() {
+  const cv = $('cVec'), c = cv.getContext('2d'), w = cv.width, h = cv.height, d = window.devicePixelRatio || 1;
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.filter = 'none';
+  c.fillStyle = '#0a0a0a'; c.fillRect(0, 0, w, h);
+  const S = Math.min(w, h) - Math.round(8 * d);
+  if (S < 40) return;
+  const sx = (w - S) / 2, sy = (h - S) / 2, cx = sx + S / 2, cy = sy + S / 2;
+  const R = VR / VS * S, z = state.vecZoom ? 2 : 1;
+  const at = (cb, cr) => [cx + cb / .5 * R * z, cy - cr / .5 * R * z]; // cb, cr in −0.5…0.5
+  const lw = Math.max(1, d);
+  c.save();
+  c.beginPath(); c.rect(sx, sy, S, S); c.clip();
+
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2);
+  c.fillStyle = '#101010'; c.fill();
+  c.lineWidth = lw; c.strokeStyle = '#3c3c3c'; c.stroke();
+  c.beginPath();
+  for (let a = 0; a < 360; a += 2) {
+    const t = a * Math.PI / 180, len = (a % 10 ? .025 : .06) * R, co = Math.cos(t), si = Math.sin(t);
+    c.moveTo(cx + co * R, cy - si * R); c.lineTo(cx + co * (R - len), cy - si * (R - len));
+  }
+  c.strokeStyle = '#363636'; c.stroke();
+  c.beginPath();
+  c.moveTo(cx - R, cy); c.lineTo(cx + R, cy); c.moveTo(cx, cy - R); c.lineTo(cx, cy + R);
+  const tl = .018 * R;
+  for (let k = 1; k < 10; k++) {
+    const o = R * k / 10;
+    for (const s of [-1, 1]) {
+      c.moveTo(cx + s * o, cy - tl); c.lineTo(cx + s * o, cy + tl);
+      c.moveTo(cx - tl, cy + s * o); c.lineTo(cx + tl, cy + s * o);
+    }
+  }
+  c.strokeStyle = '#272727'; c.stroke();
+
+  if (stats.ready) {
+    c.globalCompositeOperation = 'lighter';
+    c.imageSmoothingEnabled = true;
+    c.filter = 'blur(' + (1.5 * d).toFixed(1) + 'px)'; c.globalAlpha = .55;
+    c.drawImage(vecCv, sx, sy, S, S);
+    c.filter = 'none'; c.globalAlpha = 1;
+    c.drawImage(vecCv, sx, sy, S, S);
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  if (state.vecSkin) {
+    const sa = 123 * Math.PI / 180;
+    c.strokeStyle = 'rgba(235,170,120,.85)'; c.lineWidth = Math.max(1, 1.25 * d);
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(sa) * R, cy - Math.sin(sa) * R); c.stroke();
+  }
+
+  const lvl = state.vecTarget / 100, bs = Math.max(4 * d, R * .045);
+  c.font = '600 ' + Math.round(11 * d) + 'px Segoe UI, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = lw;
+  for (const [name, rgb, col] of VEC_TARGETS) {
+    const [r, g, b] = rgb.map(v => v * lvl), l = .2126 * r + .7152 * g + .0722 * b;
+    const [x, y] = at((b - l) / 1.8556, (r - l) / 1.5748);
+    c.strokeStyle = col;
+    c.globalAlpha = .85; c.strokeRect(x - bs, y - bs, bs * 2, bs * 2);
+    c.globalAlpha = .5; c.strokeRect(x - bs / 3, y - bs / 3, bs * 2 / 3, bs * 2 / 3);
+    const dx = x - cx, dy = y - cy, m = Math.hypot(dx, dy) || 1;
+    c.globalAlpha = .9; c.fillStyle = col;
+    c.fillText(name, x + dx / m * bs * 2.4, y + dy / m * bs * 2.4);
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = '#555';
+  c.beginPath(); c.arc(cx, cy, 1.5 * d, 0, Math.PI * 2); c.fill();
+  c.font = Math.round(10 * d) + 'px Segoe UI, sans-serif';
+  c.textAlign = 'left'; c.textBaseline = 'top'; c.fillStyle = '#6a6a6a';
+  c.fillText((z > 1 ? '2× · ' : '') + state.vecTarget + '%', sx + 6 * d, sy + 6 * d);
+  c.restore();
+}
+
+// ================= devices =================
+function setStatus(text, on, err) {
+  $('statusText').textContent = text;
+  $('status').title = text;
+  $('dot').classList.toggle('on', !!on);
+  $('status').classList.toggle('err', !!err);
+}
+const isSony = dv => /imaging edge|sony|ilce/i.test(dv.label);
+async function listDevices() {
+  let devs = [];
+  try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(dv => dv.kind === 'videoinput'); } catch (e) {}
+  const cur = sel.value || state.deviceId;
+  sel.innerHTML = '';
+  // on a phone the direct USB route is the main one, so it goes first and is the default
+  const usbOpt = navigator.usb ? new Option('Sony a7III · USB kabel', USB_ID) : null;
+  if (usbOpt && ANDROID) sel.add(usbOpt);
+  devs.forEach((dv, i) => sel.add(new Option(dv.label || 'Kamera ' + (i + 1), dv.deviceId)));
+  if (usbOpt && !ANDROID) sel.add(usbOpt);
+  if (DEMO) sel.add(new Option('Demo', DEMO_ID));
+  if (!sel.options.length) sel.add(new Option('Kamera tapılmadı', ''));
+  const sony = devs.find(isSony);
+  if (sony && !userPicked) sel.value = sony.deviceId;
+  else if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+  return {devs, sony};
+}
+
+async function connect() {
+  if (sel.value === USB_ID) {
+    setStatus('Qoşulur…');
+    try { await startUsb((await usbKnown()) || await navigator.usb.requestDevice({filters: [{vendorId: SONY_VID}]})); }
+    catch (e) { showError(e); }
+    return;
+  }
+  if (sel.value !== DEMO_ID && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+    showError({message: 'Bu brauzer kameraya çıxışı dəstəkləmir. Faylı Chrome və ya Edge ilə açın.'});
+    return;
+  }
+  setStatus('Qoşulur…');
+  try {
+    if (sel.value !== DEMO_ID) {
+      let {devs} = await listDevices();
+      if (!devs.length || devs.every(dv => !dv.label)) {
+        // ask permission once so device names become visible
+        const tmp = await navigator.mediaDevices.getUserMedia({video: true});
+        tmp.getTracks().forEach(t => t.stop());
+        ({devs} = await listDevices());
+      }
+      if (!userPicked && !devs.find(isSony)) {
+        setStatus('Sony kamerası tapılmadı', false, true);
+        $('emptyMsg').textContent = 'Sony kamerası tapılmadı. Imaging Edge Webcam quraşdırılıb və kamera USB ilə qoşulub? Yuxarıdakı siyahıdan başqa kamera da seçə bilərsiniz.';
+        $('empty').hidden = false;
+        return;
+      }
+    }
+    await start(sel.value);
+  } catch (e) { showError(e); }
+}
+
+async function start(id) {
+  stop();
+  if (id === DEMO_ID) stream = demoStream();
+  else stream = await navigator.mediaDevices.getUserMedia({audio: false, video: {
+    deviceId: id ? {exact: id} : undefined, width: {ideal: 1920}, height: {ideal: 1080}, frameRate: {ideal: 30}}});
+  await attach(id, id === DEMO_ID ? 'Demo' : stream.getVideoTracks()[0].label);
+}
+
+// shows `stream` (already set) in the view and starts the analysis loop
+async function attach(id, label) {
+  stats.ready = false;
+  video.srcObject = stream;
+  await video.play();
+  state.deviceId = id; save();
+  $('empty').hidden = true;
+  setStatus(label + ' · ' + video.videoWidth + '×' + video.videoHeight, true);
+  stream.getVideoTracks()[0].addEventListener('ended', () => lost());
+  loop();
+  keepAwake();
+}
+
+function lost() {
+  stop();
+  setStatus('Kamera ayrıldı', false, true);
+  $('emptyMsg').textContent = 'Kamera ayrıldı. Kabeli və kameranı yoxlayın.';
+  $('empty').hidden = false;
+}
+
+function stop() {
+  cancelAnimationFrame(raf);
+  cancelAnimationFrame(demoRaf);
+  usbClose();
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  video.srcObject = null;
+  if (wake) { wake.release().catch(() => {}); wake = null; }
+  clearView();
+}
+
+// keep a phone screen on while monitoring
+let wake = null;
+async function keepAwake() {
+  if (!stream || wake || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+  try {
+    wake = await navigator.wakeLock.request('screen');
+    wake.addEventListener('release', () => { wake = null; });
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', keepAwake);
+
+function showError(e) {
+  const n = e && e.name;
+  let m = 'Xəta: ' + ((e && e.message) || e);
+  if (n === 'UsbError') m = e.message;
+  else if (sel.value === USB_ID && USB_ERRORS[n]) m = !SITE_OK && n !== 'NetworkError' ? MSG_FILE : USB_ERRORS[n];
+  else if (n === 'NotAllowedError') m = 'Kameraya icazə verilmədi. Ünvan sətrindəki kamera işarəsindən icazə verin.';
+  else if (n === 'NotReadableError' || n === 'AbortError') m = 'Kamera başqa proqramda açıqdır (Imaging Edge Desktop, Zoom, Teams…). Onu bağlayıb yenidən cəhd edin.';
+  else if (n === 'NotFoundError' || n === 'OverconstrainedError') m = 'Kamera tapılmadı. Kabeli və kameradakı USB Connection ayarını yoxlayın.';
+  setStatus(m, false, true);
+  $('emptyMsg').textContent = m;
+  $('empty').hidden = false;
+}
+
+// ================= Sony USB (phone) =================
+// The a7III is not a USB webcam. In PC Remote mode it speaks PTP, and its live view is a JPEG
+// served as object 0xFFFFC002 (the route gphoto2 uses). WebUSB lets Chrome on Android talk PTP
+// directly; each frame is painted to a canvas whose stream feeds the normal pipeline.
+const USB_ID = '__usb', SONY_VID = 0x054c, LV_HANDLE = 0xffffc002;
+const PTP_OK = 0x2001, PTP_SESSION_OPEN = 0x201e;
+const ANDROID = /Android/i.test(navigator.userAgent);
+const MSG_PC_REMOTE = 'Kamera PC Remote rejimində deyil. Kamerada MENU → Setup → USB Connection → PC Remote seçin, kabeli çıxarıb yenidən taxın.';
+const MSG_BUSY = 'Kameranı başqa proqram tutub. Telefonda: kabeli çıxarıb yenidən taxın, kameranı açan qalereya və ya fayl tətbiqini bağlayın. Kompüterdə bu yol işləmir, orada Imaging Edge Webcam mənbəyini seçin.';
+const MSG_NO_LV = 'Kamera qoşuldu, amma canlı görüntü göndərmir. Kameranın ekranında PC Remote yazısı görünür? Kameranı söndürüb yandırın və yenidən qoşun.';
+const MSG_TIMEOUT = 'Kamera cavab vermir. Kabeli çıxarıb yenidən taxın və Qoş düyməsini basın.';
+// a file opened from Telegram or Downloads (content://, file://) is not a proper site; WebUSB is only promised on https
+const SITE_OK = location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const MSG_FILE = 'Səhifə fayl kimi açılıb (Telegram və ya Yükləmələrdən). Belə açılanda kameraya qoşulmaq işləməyə bilər. Saytın https:// ilə başlayan ünvanını Chrome-da açın.';
+const USB_ERRORS = {
+  NotFoundError: 'Telefon kameranı tapmadı və ya siyahı bağlandı. Yoxlayın: kamera yanılıdır və USB Connection → PC Remote seçilib, kabel data kabelidir (yalnız şarj kabeli deyil), telefonun ayarlarında OTG varsa açıqdır. Sonra Qoş basın və siyahıdan kameranı seçin.',
+  SecurityError: 'USB-yə icazə alınmadı. Səhifəni https ilə başlayan ünvandan Chrome ilə açın və Qoş düyməsini basın.',
+  NetworkError: 'USB əlaqəsi kəsildi. Kabeli yoxlayın və Qoş düyməsini yenidən basın.'
+};
+class UsbError extends Error { constructor(m) { super(m); this.name = 'UsbError'; } }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let usb = null, usbClosing = Promise.resolve();
+
+class Ptp {
+  constructor(dev) { this.dev = dev; this.tid = 0; this.buf = new Uint8Array(0); this.q = Promise.resolve(); }
+  async open() {
+    const d = this.dev;
+    try {
+      if (!d.opened) await d.open();
+      if (!d.configuration) await d.selectConfiguration(1);
+    } catch (e) { throw new UsbError(MSG_BUSY); }
+    // the PTP interface: still-image class with a bulk pipe each way
+    let pick = null;
+    for (const itf of d.configuration.interfaces) for (const alt of itf.alternates) {
+      const i = alt.endpoints.find(e => e.type === 'bulk' && e.direction === 'in');
+      const o = alt.endpoints.find(e => e.type === 'bulk' && e.direction === 'out');
+      if (i && o && (!pick || alt.interfaceClass === 6)) pick = {itf, alt, i, o};
+    }
+    if (!pick) throw new UsbError(MSG_PC_REMOTE);
+    try {
+      await d.claimInterface(pick.itf.interfaceNumber);
+      if (pick.itf.alternate.alternateSetting !== pick.alt.alternateSetting)
+        await d.selectAlternateInterface(pick.itf.interfaceNumber, pick.alt.alternateSetting);
+    } catch (e) { throw new UsbError(MSG_BUSY); }
+    this.epIn = pick.i.endpointNumber;
+    this.epOut = pick.o.endpointNumber;
+    this.chunk = Math.max(512, pick.i.packetSize) * 128;  // always whole packets, or the transfer babbles
+  }
+  timed(p) {
+    let t;
+    const late = new Promise((_, no) => { t = setTimeout(() => no(new UsbError(MSG_TIMEOUT)), 6000); });
+    return Promise.race([p, late]).finally(() => clearTimeout(t));
+  }
+  // grows the read buffer to n bytes; one transfer may hold the end of one container and the next
+  async take(n) {
+    while (this.buf.length < n) {
+      const r = await this.timed(this.dev.transferIn(this.epIn, this.chunk));
+      if (r.status === 'stall') { await this.dev.clearHalt('in', this.epIn); throw new UsbError(MSG_TIMEOUT); }
+      if (r.status !== 'ok') throw new UsbError(MSG_TIMEOUT);
+      if (!r.data || !r.data.byteLength) continue;  // zero-length packet that closes a data phase
+      const add = new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+      const nb = new Uint8Array(this.buf.length + add.length);
+      nb.set(this.buf); nb.set(add, this.buf.length);
+      this.buf = nb;
+    }
+  }
+  async container() {
+    await this.take(12);
+    const v = new DataView(this.buf.buffer, this.buf.byteOffset, 12);
+    const len = v.getUint32(0, true), type = v.getUint16(4, true), code = v.getUint16(6, true), tid = v.getUint32(8, true);
+    if (len < 12 || len > 64e6) throw new UsbError(MSG_TIMEOUT);
+    await this.take(len);
+    const data = this.buf.subarray(12, len);
+    this.buf = this.buf.slice(len);
+    return {type, code, tid, data};
+  }
+  // one transaction: command, optional data from the camera, response. Queued so they never interleave.
+  cmd(code, params = []) {
+    const run = this.q.then(() => this.exec(code, params));
+    this.q = run.catch(() => {});
+    return run;
+  }
+  async exec(code, params) {
+    const tid = this.tid++, len = 12 + 4 * params.length, v = new DataView(new ArrayBuffer(len));
+    v.setUint32(0, len, true); v.setUint16(4, 1, true); v.setUint16(6, code, true); v.setUint32(8, tid, true);
+    params.forEach((p, i) => v.setUint32(12 + 4 * i, p >>> 0, true));
+    const w = await this.timed(this.dev.transferOut(this.epOut, v.buffer));
+    if (w.status !== 'ok') throw new UsbError(MSG_TIMEOUT);
+    let data = null;
+    for (;;) {
+      const c = await this.container();
+      if (c.tid < tid) continue;  // left over from an earlier, abandoned transaction
+      if (c.type === 2) data = c.data;
+      else if (c.type === 3) return {code: c.code, data};
+    }
+  }
+}
+
+function parseDeviceInfo(b) {
+  try {
+    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let o = 0;
+    const u16 = () => { o += 2; return v.getUint16(o - 2, true); };
+    const u32 = () => { o += 4; return v.getUint32(o - 4, true); };
+    const str = () => { const n = v.getUint8(o++); let s = ''; for (let i = 0; i < n; i++) { const ch = u16(); if (ch) s += String.fromCharCode(ch); } return s; };
+    const skipArr = () => { const n = u32(); o += 2 * n; };
+    u16(); u32(); u16(); str(); u16();
+    for (let i = 0; i < 5; i++) skipArr();
+    str();
+    return {model: str()};
+  } catch (e) { return {model: ''}; }
+}
+
+// the live view JPEG, or null when the camera has no new frame yet
+async function grab(p) {
+  const oi = await p.cmd(0x1008, [LV_HANDLE]);  // GetObjectInfo
+  if (oi.code !== PTP_OK) return null;
+  const r = await p.cmd(0x1009, [LV_HANDLE]);  // GetObject
+  return r.code === PTP_OK && r.data ? findJpeg(r.data) : null;
+}
+function findJpeg(b) {
+  if (b.length > 8) {  // Sony's header starts with the JPEG's offset and size
+    const v = new DataView(b.buffer, b.byteOffset, 8), off = v.getUint32(0, true), len = v.getUint32(4, true);
+    if (len && off + len <= b.length && b[off] === 0xff && b[off + 1] === 0xd8) return b.subarray(off, off + len);
+  }
+  let s = -1, e = b.length;
+  for (let i = 0; i < b.length - 1; i++) if (b[i] === 0xff && b[i + 1] === 0xd8) { s = i; break; }
+  if (s < 0) return null;
+  for (let i = b.length - 2; i > s; i--) if (b[i] === 0xff && b[i + 1] === 0xd9) { e = i + 2; break; }
+  return b.subarray(s, e);
+}
+async function paintJpeg(me, jpg) {
+  const bmp = await createImageBitmap(new Blob([jpg], {type: 'image/jpeg'}));
+  const cv = me.cv;
+  if (cv.width !== bmp.width || cv.height !== bmp.height) { cv.width = bmp.width; cv.height = bmp.height; }
+  cv.getContext('2d').drawImage(bmp, 0, 0);
+  bmp.close();
+}
+
+const usbKnown = async () => navigator.usb ? (await navigator.usb.getDevices()).find(d => d.vendorId === SONY_VID) : null;
+
+async function startUsb(dev) {
+  stop();
+  await usbClosing;
+  setStatus('Kameraya qoşulur…');
+  const p = new Ptp(dev), me = {dev, p, cv: document.createElement('canvas'), label: 'Sony · USB'};
+  usb = me;
+  try {
+    await p.open();
+    const r = await p.cmd(0x1002, [1]);  // OpenSession
+    if (r.code !== PTP_OK && r.code !== PTP_SESSION_OPEN) throw new UsbError(MSG_PC_REMOTE);
+    const info = parseDeviceInfo((await p.cmd(0x1001)).data || new Uint8Array(0));
+    if (info.model) me.label = info.model + ' · USB';
+    // Sony remote-control handshake; only answered in PC Remote mode
+    if ((await p.cmd(0x9201, [1, 0, 0])).code !== PTP_OK) throw new UsbError(MSG_PC_REMOTE);
+    await p.cmd(0x9201, [2, 0, 0]);
+    if ((await p.cmd(0x9202, [0xc8])).code !== PTP_OK) await p.cmd(0x9202, [0x12c]);
+    await p.cmd(0x9201, [3, 0, 0]);
+    // the first frames take a few seconds after the handshake
+    let jpg = null;
+    for (const t0 = Date.now(); !jpg && Date.now() - t0 < 8000;) {
+      jpg = await grab(p);
+      if (usb !== me) return;
+      if (!jpg) await sleep(150);
+    }
+    if (!jpg) throw new UsbError(MSG_NO_LV);
+    await paintJpeg(me, jpg);
+    stream = me.cv.captureStream();
+    await attach(USB_ID, me.label);
+    usbLoop(me);
+  } catch (e) {
+    if (usb === me) stop();
+    throw e;
+  }
+}
+
+async function usbLoop(me) {
+  let busy = false, frames = 0, t0 = performance.now();
+  try {
+    while (usb === me) {
+      const jpg = await grab(me.p);
+      if (usb !== me) break;
+      if (!jpg) { await sleep(10); continue; }
+      // decoding overlaps the next transfer; a frame that arrives mid-decode is dropped
+      if (!busy) {
+        busy = true;
+        paintJpeg(me, jpg).then(() => frames++, () => {}).finally(() => { busy = false; });
+      }
+      const now = performance.now();
+      if (now - t0 >= 1000) {
+        setStatus(me.label + ' · ' + video.videoWidth + '×' + video.videoHeight + ' · ' + Math.round(frames * 1000 / (now - t0)) + ' fps', true);
+        frames = 0; t0 = now;
+      }
+    }
+  } catch (e) {
+    if (usb === me) { stop(); showError(e); }
+  }
+}
+
+function usbClose() {
+  const me = usb;
+  if (!me) return;
+  usb = null;
+  usbClosing = (async () => {
+    try { await Promise.race([me.p.cmd(0x1003), sleep(1000)]); } catch (e) {}  // CloseSession
+    try { await me.dev.close(); } catch (e) {}
+  })();
+}
+
+if (navigator.usb) {
+  navigator.usb.addEventListener('disconnect', e => { if (usb && e.device === usb.dev) lost(); });
+  // permission given earlier: plugging the camera back in reconnects by itself
+  navigator.usb.addEventListener('connect', e => {
+    if (stream || usb || e.device.vendorId !== SONY_VID || state.deviceId !== USB_ID) return;
+    sel.value = USB_ID;
+    startUsb(e.device).catch(showError);
+  });
+}
+
+// Landscape-like scene for checking the page without a camera (open with #demo)
+function demoStream() {
+  const W = 1280, H = 720, big = document.createElement('canvas');
+  big.width = 1600; big.height = H;
+  const b = big.getContext('2d');
+  let g = b.createLinearGradient(0, 0, 0, H * .6);
+  g.addColorStop(0, '#3d6fa8'); g.addColorStop(1, '#e9c79a');
+  b.fillStyle = g; b.fillRect(0, 0, 1600, H);
+  g = b.createRadialGradient(1100, 300, 0, 1100, 300, 260);
+  g.addColorStop(0, 'rgba(255,255,250,1)'); g.addColorStop(.12, 'rgba(255,250,230,1)'); g.addColorStop(1, 'rgba(255,220,170,0)');
+  b.fillStyle = g; b.fillRect(0, 0, 1600, H);
+  const hill = (base, amp, c1, c2, s) => {
+    b.beginPath(); b.moveTo(0, H);
+    for (let x = 0; x <= 1600; x += 8) b.lineTo(x, base + amp * (Math.sin(x / 180 + s) * .6 + Math.sin(x / 67 + s * 2) * .3 + Math.sin(x / 23 + s * 3) * .1));
+    b.lineTo(1600, H); b.closePath();
+    const gg = b.createLinearGradient(0, base - amp, 0, H);
+    gg.addColorStop(0, c1); gg.addColorStop(1, c2);
+    b.fillStyle = gg; b.fill();
+  };
+  hill(400, 40, '#6d7f96', '#4a5a6e', 1);
+  hill(470, 50, '#4f6a42', '#2a3b26', 2);
+  hill(560, 60, '#3b4a26', '#14190d', 3);
+  b.lineWidth = 1.2;
+  for (let i = 0; i < 1800; i++) {
+    const x = Math.random() * 1600, y = 590 + Math.random() * 130;
+    b.strokeStyle = `rgba(${170 + Math.random() * 60},${190 + Math.random() * 40},110,.35)`;
+    b.beginPath(); b.moveTo(x, y); b.lineTo(x + (Math.random() - .5) * 6, y - 8 - Math.random() * 16); b.stroke();
+  }
+  const id = b.getImageData(0, 0, 1600, H), px = id.data;
+  for (let i = 0; i < px.length; i += 4) { const nz = (Math.random() - .5) * 10; px[i] += nz; px[i + 1] += nz; px[i + 2] += nz; }
+  b.putImageData(id, 0, 0);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  const paint = t => { c.drawImage(big, -(160 + 160 * Math.sin(t / 4000)), 0); demoRaf = requestAnimationFrame(paint); };
+  paint(0);
+  return cv.captureStream(30);
+}
+
+// ================= main loop =================
+const anyScope = () => SCOPES.some(k => state[k]);
+const viewShown = () => state.layout !== 'scopes' || !anyScope();
+function loop() {
+  cancelAnimationFrame(raf);
+  let lastA = 0;
+  const tick = now => {
+    raf = requestAnimationFrame(tick);
+    if (!stream || video.readyState < 2) return;
+    if (viewShown()) {
+      if (GL_OK) render(now / 1000);
+      drawOverlay();
+    }
+    if (now - lastA >= 33 && anyScope()) { lastA = now; analyse(); drawScopes(); }
+  };
+  raf = requestAnimationFrame(tick);
+}
+
+// ================= LUT =================
+function parseCube(text) {
+  let n = 0;
+  const vals = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line[0] === '#') continue;
+    const up = line.toUpperCase();
+    if (up.startsWith('LUT_3D_SIZE')) { n = parseInt(line.split(/\s+/)[1], 10); continue; }
+    if (up.startsWith('LUT_1D_SIZE')) throw new Error('1D LUT dəstəklənmir, 3D .cube lazımdır');
+    if (/^[A-Z_]/.test(up)) continue;
+    const p = line.split(/\s+/);
+    if (p.length >= 3) vals.push(+p[0], +p[1], +p[2]);
+  }
+  if (!n || n < 2 || n > 129 || vals.length < n * n * n * 3) throw new Error('LUT faylı düzgün deyil');
+  return {n, data: new Float32Array(vals.slice(0, n * n * n * 3))};
+}
+function loadLut(text, name, persist) {
+  if (!GL_OK) throw new Error('WebGL2 yoxdur');
+  const {n, data} = parseCube(text);
+  uploadLut(n, data);
+  lut = {n, name};
+  $('lutName').textContent = name + ' (' + n + '³)';
+  if (persist) { try { localStorage.setItem('a7mon-lut', JSON.stringify({name, text})); } catch (e) {} }
+}
+$('lutFile').onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try { loadLut(await f.text(), f.name, true); state.lutOn = true; applyUI(); }
+  catch (err) { $('lutName').textContent = 'Xəta: ' + err.message; }
+};
+$('lutClear').onclick = () => {
+  lut = null;
+  if (GL_OK) uploadLut(2, IDENTITY_LUT);
+  state.lutOn = false;
+  try { localStorage.removeItem('a7mon-lut'); } catch (e) {}
+  $('lutName').textContent = 'LUT yüklənməyib. S-Log ilə çəkəndə normal rəngləri görmək üçün.';
+  applyUI();
+};
+
+// ================= UI =================
+function updateHud() {
+  const t = [];
+  if (GL_OK) {
+    if (state.zoom > 1) t.push(state.zoom + '×');
+    if (state.desq != 1) t.push('Desqueeze ' + state.desq + '×');
+    if (state.zebra) t.push('Zebra ' + state.zebraLvl + '%');
+    if (state.zebraLo) t.push('Kölgə ' + state.zebraLoLvl + '%');
+    if (state.falseColor) t.push('False color');
+    if (state.peak) t.push('Peaking');
+    if (state.lutOn && lut) t.push('LUT');
+    if (state.flipH) t.push('Güzgü');
+    if (state.flipV) t.push('Tərsinə');
+  }
+  if (state.guide !== 'none') t.push(state.guide);
+  const hud = $('hud');
+  hud.innerHTML = '';
+  t.forEach(s => { const e = document.createElement('span'); e.textContent = s; hud.appendChild(e); });
+}
+
+function sizeSquare() {
+  const sq = document.querySelector('.scope.square'), sc = $('scopes');
+  const others = SCOPES.filter(k => k !== 'sVec' && state[k]).length;
+  const column = getComputedStyle(sc).flexDirection === 'column';
+  // square by the cross size, but never so wide (a phone held upright) that the other scopes get squeezed out
+  const side = column ? Math.min(sc.clientWidth, sc.clientHeight / (others + 1)) : Math.min(sc.clientHeight, sc.clientWidth / (others + 1));
+  sq.style.flex = others ? '0 0 ' + Math.floor(side) + 'px' : '1 1 0';
+}
+
+function applyUI() {
+  document.querySelectorAll('[data-t]').forEach(el => el.setAttribute('aria-pressed', !!state[el.dataset.t]));
+  document.querySelectorAll('[data-k]').forEach(el => el.setAttribute('aria-pressed', state[el.dataset.k] == el.dataset.v));
+  document.querySelectorAll('[data-s]').forEach(el => { if (document.activeElement !== el) el.value = state[el.dataset.s]; });
+  document.querySelectorAll('[data-o]').forEach(el => el.textContent = FMT[el.dataset.o](state[el.dataset.o]));
+  document.querySelectorAll('[data-scope]').forEach(el => el.hidden = !state[el.dataset.scope]);
+  $('lutBtn').disabled = !GL_OK || !lut;
+  main.dataset.layout = state.layout;
+  main.classList.toggle('noscopes', !anyScope());
+  main.style.setProperty('--hr', state.hr + 'fr');
+  $('tools').hidden = !state.tools;
+  $('legend').hidden = !(GL_OK && state.falseColor);
+  updateHud();
+  sizeSquare();
+  save();
+  if (!stream) drawScopes();
+}
+
+function changed(k) {
+  if (k === 'zoom') center = clampC(center);
+  applyUI();
+}
+document.querySelectorAll('[data-t]').forEach(el => el.addEventListener('click', () => { state[el.dataset.t] = !state[el.dataset.t]; changed(el.dataset.t); }));
+document.querySelectorAll('[data-k]').forEach(el => el.addEventListener('click', () => {
+  const v = el.dataset.v;
+  state[el.dataset.k] = isNaN(+v) ? v : +v;
+  changed(el.dataset.k);
+}));
+document.querySelectorAll('[data-s]').forEach(el => {
+  const h = () => { state[el.dataset.s] = el.type === 'range' ? +el.value : el.value; changed(el.dataset.s); };
+  el.addEventListener('input', h);
+  el.addEventListener('change', h);
+});
+if (!GL_OK) {
+  $('gpuNote').hidden = false;
+  document.querySelectorAll('[data-gpu]').forEach(el => el.disabled = true);
+}
+
+// zoom: double-click magnifies at that point, single click re-centres while magnified
+const clampC = c => { const m = .5 / state.zoom; return [Math.min(1 - m, Math.max(m, c[0])), Math.min(1 - m, Math.max(m, c[1]))]; };
+function pointToF(e) {
+  const b = view.getBoundingClientRect(), r = imageRect(ov.width, ov.height);
+  if (!r || !b.width) return null;
+  const k = ov.width / b.width;
+  const s = [((e.clientX - b.left) * k - r.x) / r.w, ((e.clientY - b.top) * k - r.y) / r.h];
+  if (s[0] < 0 || s[0] > 1 || s[1] < 0 || s[1] > 1) return null;
+  return [state.flipH ? 1 - s[0] : s[0], state.flipV ? 1 - s[1] : s[1]];
+}
+view.addEventListener('click', e => {
+  if (!GL_OK || !stream || state.zoom === 1) return;
+  const f = pointToF(e);
+  if (f) center = clampC([center[0] + (f[0] - .5) / state.zoom, center[1] + (f[1] - .5) / state.zoom]);
+});
+view.addEventListener('dblclick', e => {
+  if (!GL_OK || !stream) return;
+  const f = pointToF(e);
+  if (!f) return;
+  if (state.zoom === 1) { state.zoom = 2; center = clampC(f); }
+  else { state.zoom = 1; center = [.5, .5]; }
+  changed('zoom');
+});
+
+$('connect').onclick = $('connect2').onclick = connect;
+sel.onchange = async () => {
+  userPicked = true;
+  // the USB device chooser needs a button press, so picking the source alone only connects a camera allowed before
+  if (sel.value === USB_ID) {
+    const d = await usbKnown();
+    if (d) startUsb(d).catch(showError);
+    else setStatus('Kameranı qoşub Qoş düyməsini basın');
+    return;
+  }
+  connect();
+};
+const openHelp = () => $('helpDlg').showModal();
+$('help').onclick = $('help2').onclick = openHelp;
+const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+$('fs').onclick = toggleFs;
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || /SELECT|INPUT/.test(e.target.tagName) || $('helpDlg').open) return;
+  const k = e.key.toLowerCase();
+  if (!GL_OK && 'zcplm'.includes(k)) return;
+  const tog = n => { state[n] = !state[n]; };
+  switch (k) {
+    case 'z': tog('zebra'); break;
+    case 'c': tog('falseColor'); break;
+    case 'p': tog('peak'); break;
+    case 'l': if (!lut) return; tog('lutOn'); break;
+    case 'm': state.zoom = ZOOMS[(ZOOMS.indexOf(state.zoom) + 1) % ZOOMS.length]; center = clampC(center); break;
+    case 'g': state.guide = GUIDES[(GUIDES.indexOf(state.guide) + 1) % GUIDES.length]; break;
+    case 't': tog('tools'); break;
+    case 's': tog('vecSkin'); break;
+    case 'v': state.layout = LAYOUTS[(LAYOUTS.indexOf(state.layout) + 1) % LAYOUTS.length]; break;
+    case '1': case '2': case '3': case '4': tog(SCOPES[+k - 1]); break;
+    case 'f': toggleFs(); return;
+    case '?': case 'h': openHelp(); return;
+    default: return;
+  }
+  e.preventDefault();
+  applyUI();
+});
+
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+}
+const ro = new ResizeObserver(() => {
+  sizeSquare();
+  [glc, ov, $('cHist'), $('cWave'), $('cParade'), $('cVec')].forEach(fit);
+  drawScopes();
+});
+ro.observe(view);
+ro.observe($('scopes'));
+document.querySelectorAll('.scope .cv').forEach(el => ro.observe(el));
+
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', async () => {
+    const {sony} = await listDevices();
+    if (sony && !stream) { setStatus('Sony kamerası tapıldı, qoşulur…'); start(sony.deviceId).catch(showError); }
+  });
+}
+
+try {
+  const saved = JSON.parse(localStorage.getItem('a7mon-lut') || 'null');
+  if (saved && GL_OK) loadLut(saved.text, saved.name, false);
+} catch (e) {}
+applyUI();
+if (ANDROID) $('emptyMsg').textContent = !SITE_OK ? MSG_FILE : navigator.usb
+  ? 'Kameranı OTG kabeli ilə telefona qoşun, kamerada USB Connection → PC Remote seçin və Kameranı qoş düyməsini basın.'
+  : 'Birbaşa USB bu ünvanda işləmir. Səhifəni Chrome ilə, https ilə başlayan ünvandan açın.';
+listDevices().then(async ({sony}) => {
+  if (DEMO) { sel.value = DEMO_ID; start(DEMO_ID).catch(showError); }
+  // permission granted earlier and the camera is plugged in → start right away
+  else if (sony) start(sony.deviceId).catch(showError);
+  else if (sel.value === USB_ID) {
+    const d = await usbKnown();
+    if (d && !stream && !usb) startUsb(d).catch(showError);
+  }
+});
+})();
+</script>
+</body>
+</html>
