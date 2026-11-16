@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FF0B1220</color>
+    <style name="Rahat" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorAccent">#FF3D8BFF</item>
+        <item name="android:colorPrimary">#FF0B1220</item>
+        <item name="android:colorPrimaryDark">#FF0B1220</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+</resources>

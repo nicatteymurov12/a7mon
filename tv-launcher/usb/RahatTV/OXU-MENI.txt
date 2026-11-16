@@ -1,0 +1,99 @@
+RAHAT TV — Android 7 televizor üçün yeni menyu
+==============================================
+
+Bu nədir?
+---------
+Rahat TV televizorun köhnə, ağır menyusunun yerinə qoyulan yüngül, sürətli
+menyudur (launcher). Pult ilə rahat idarə olunur və bunları edir:
+
+  * Netflix, YouTube, Play Market, Brauzer — böyük düymələrlə bir kliklə
+  * "Sürətləndir" — fonda boş yerə işləyən tətbiqləri dayandırıb RAM boşaldır
+  * "USB-dən quraşdır" — fləş kartdakı APK faylları tapır və quraşdırır
+  * "Yoxlama" — Netflix və Play Market-in niyə xəta verdiyini tapır
+    (səhv saat, köhnə Google xidmətləri, az yaddaş, DRM səviyyəsi) və
+    düzəltmək üçün lazımi pəncərəni açır
+  * "TV / Mənbə" — köhnə menyu (HDMI, antena kanalları) həmişə əlçatandır
+
+TƏHLÜKƏSİZDİR: TV-nin sistem proqramına (firmware) TOXUNMUR. TV-ni xarab
+etmək riski yoxdur. İstənilən vaxt silib köhnə vəziyyətə qayıtmaq olar.
+
+
+QURAŞDIRMA (bir dəfə, 5 dəqiqə)
+-------------------------------
+1) Bu "RahatTV" qovluğunu fləş kartın içinə (birbaşa kökünə) kopyalayın.
+
+2) TV-də: Parametrlər → Təhlükəsizlik (Security) →
+   "Naməlum mənbələr" (Unknown sources) → AÇIN.
+   (Bəzi TV-lərdə: Parametrlər → Şəxsi (Personal) → Təhlükəsizlik.)
+
+3) Fləş kartı TV-yə taxın. TV-nin fayl proqramını açın
+   ("Fayl meneceri", "Media", "USB", "File Browser" və s.):
+       RahatTV → RahatTV.apk → Quraşdır (Install)
+   TV-də APK açan proqram yoxdursa: Play Market-dən "File Commander"
+   və ya "X-plore File Manager" yükləyin və faylı onunla açın.
+
+4) Pultda HOME düyməsini basın. Sual çıxacaq — "Rahat TV" seçin,
+   sonra "Həmişə" (Always).
+   Sual çıxmırsa: Rahat TV-ni tətbiqlər siyahısından açın →
+   "Rahat TV / Ayarlar" → "Rahat TV-ni əsas menyu et".
+   Bu da alınmırsa, orada "TV yananda Rahat TV-ni aç" seçimini yandırın.
+
+
+İSTİFADƏ
+--------
+  OK                     — açmaq
+  OK-nu basılı saxlamaq  — seçimlər (sevimlilərə əlavə et, gizlət,
+  və ya MENU düyməsi       keşi təmizlə, sil)
+  GERİ (Back)            — ana ekranın yuxarısına qayıtmaq
+
+Yeni tətbiq quraşdırmaq üçün: APK faylını fləş kartda RahatTV/apps
+qovluğuna qoyun → Rahat TV → "USB-dən quraşdır". Rahat TV faylın bu TV-yə
+uyğun olub-olmadığını (Android 7 ilə işləyirmi) əvvəlcədən göstərir.
+
+
+NETFLIX HAQQINDA DÜZGÜN MƏLUMAT (vacibdir)
+------------------------------------------
+Netflix-in keyfiyyəti TV-nin çipindəki "Widevine DRM" qorumasından asılıdır.
+Bu, aparat (hardware) xüsusiyyətidir. Heç bir launcher, heç bir "yeni sistem"
+bunu dəyişə bilməz — bunu vəd edən firmware-lər ya işləmir, ya da TV-ni
+xarab edir. Rahat TV → "Yoxlama" sizin TV-nizdə nə olduğunu göstərir:
+
+  Widevine L1   → Netflix HD keyfiyyətdə işləyə bilər
+  Widevine L3   → Netflix işləyir, amma ancaq SD (təxminən 480p) keyfiyyətdə
+  Widevine yox  → Netflix işləməyəcək
+
+Netflix Play Market-də görünmürsə (sertifikatsız TV-lərdə tez-tez olur):
+  * Netflix-in adi ".apk" faylını etibarlı saytdan endirin.
+    XAPK / APKS / APKM faylları Android 7-də birbaşa quraşdırılmır.
+  * Son versiya "daha yeni Android tələb edir" yazırsa, bir az köhnə
+    versiyanı götürün.
+  * Faylı RahatTV/apps qovluğuna qoyun → "USB-dən quraşdır".
+
+Netflix-i tam HD və heç bir xəta olmadan istəyirsinizsə, ən etibarlı yol:
+TV-nin HDMI girişinə taxılan sertifikatlı TV stick (Google TV / Android TV
+və ya Fire TV). Onda Netflix rəsmi olaraq dəstəklənir.
+
+
+PLAY MARKET XƏTA VERİRSƏ — ardıcıl edin
+---------------------------------------
+Rahat TV → "Yoxlama" bölməsində bu addımlar düymə kimi var:
+  1. Tarix və saat düzgündürmü? (Səhv saat ən çox rast gəlinən səbəbdir —
+     TV elektrikdən çıxanda saat sıfırlanır.) "Avtomatik tarix və saat" seçin.
+  2. Play Market → Tətbiq məlumatı → Yaddaş → "Keşi təmizlə".
+  3. Google Play Xidmətləri → "Keşi təmizlə" (məlumatları SİLMƏYİN).
+  4. TV-ni rozetkadan çıxarın, 30 saniyə sonra taxın.
+
+
+NİYƏ "YENİ FIRMWARE" YOX?
+-------------------------
+Bu TV-nin (Android 7.0, model "SMART_TV", firmware 20200522) içindəki plata
+istehsalçıya məxsusdur. Başqa plata üçün yazılmış firmware yazılarsa, TV
+tamamilə sönə bilər (təmiri bahalıdır). Bu model üçün rəsmi yeniləmə varsa,
+onu yalnız satıcı və ya servis mərkəzi verə bilər — internetdəki "universal"
+firmware-lər təhlükəlidir. Ona görə təhlükəsiz yol seçilib: sistemin özünə
+toxunmadan menyunu, sürəti və Netflix/Play Market problemlərini həll etmək.
+
+
+SİLMƏK
+------
+Parametrlər → Tətbiqlər → Rahat TV → Sil. TV köhnə menyusu ilə qalır.

@@ -1,0 +1,7 @@
+Quraşdırmaq istədiyiniz tətbiqlərin .apk fayllarını bu qovluğa qoyun
+(məsələn Netflix, YouTube, brauzer).
+
+Sonra TV-də: Rahat TV → "USB-dən quraşdır" → faylı seçin → OK.
+
+Qeyd: XAPK / APKS / APKM faylları Android 7-də birbaşa quraşdırılmır —
+həmişə adi ".apk" faylını endirin.
