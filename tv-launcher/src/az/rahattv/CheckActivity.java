@@ -181,6 +181,28 @@ public class CheckActivity extends Activity {
                 + " · İstehsalçı: " + Build.MANUFACTURER + "\nÇip: " + Build.HARDWARE + " / " + Build.BOARD
                 + " · Proqram: " + Build.DISPLAY, null, null);
 
+        // apps that crashed recently (caught by the home screen)
+        TextView ct = Ui.section(this, "Son xətalar (çökən tətbiqlər)");
+        box.addView(ct, Ui.lpMargins(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 20, 0, 8));
+        java.util.List<CrashWatch.Report> crashes = CrashWatch.history(this);
+        long weekAgo = System.currentTimeMillis() - 7L * 24 * 3600 * 1000;
+        int shown = 0;
+        for (final CrashWatch.Report r : crashes) {
+            if (r.time < weekAgo) continue;
+            shown++;
+            add(Ui.WARN, r.label + (r.frozen ? " donub qaldı" : " bağlandı") + " · " + CrashWatch.when(r.time),
+                    CrashWatch.advice(r) + (r.shortMsg != null && r.shortMsg.length() > 0 ? "\nXəta: " + r.shortMsg : ""),
+                    "Düzəlt", new Runnable() { @Override public void run() { Apps.appInfo(CheckActivity.this, r.pkg); } });
+        }
+        if (shown == 0) {
+            add(Ui.OK, "Son 7 gündə çökən tətbiq yoxdur",
+                    "Tətbiq \"keeps stopping / dayandı\" deyib bağlananda Rahat TV səbəbini burada yazacaq.", null, null);
+        } else {
+            add(0, "Siyahını təmizlə", "Problemi həll etdinizsə, köhnə qeydləri silin.", "Təmizlə", new Runnable() {
+                @Override public void run() { CrashWatch.clear(CheckActivity.this); build(); }
+            });
+        }
+
         // Play Market repair steps
         TextView t = Ui.section(this, "Play Market xəta verirsə — ardıcıl edin");
         box.addView(t, Ui.lpMargins(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 20, 0, 8));

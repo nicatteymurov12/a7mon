@@ -14,6 +14,7 @@ Köhnə, ağır TV menyusunun yerinə qoyulan yüngül launcher. Firmware-ə tox
 | Sürətləndir | Yüklənmiş tətbiqlərin fonda boş işləyən proseslərini dayandırır, RAM boşaldır |
 | USB / APK | Fləş kartda `.apk` faylları tapır, Android 7 ilə uyğunluğunu yoxlayır, quraşdırır. XAPK/APKS faylları barədə xəbərdarlıq edir |
 | Yoxlama | Saat, internet, Widevine DRM səviyyəsi (L1/L3), Play Market / Play Xidmətləri / WebView versiyaları, yaddaş, RAM. Hər problemin yanında onu düzəldən düymə var |
+| Xəta tutucu | Başqa tətbiq çökəndə ("keeps stopping") və ya donanda Android-in xəta mətnini oxuyur, səbəbi sadə dildə izah edir, "Düzəlt / Yenilə" düymələri verir. Son xətalar "Yoxlama"da qalır |
 | Sevimlilər, gizlət, sil | Tətbiqin üstündə MENU düyməsini basın və ya OK-nu basılı saxlayın |
 
 Saat səhv olanda (TV elektrikdən çıxandan sonra sıfırlanır) Netflix, YouTube və ya Play Market açılmazdan əvvəl xəbərdarlıq çıxır, çünki "bağlantı xətası"nın ən çox rast gəlinən səbəbi budur.
@@ -43,6 +44,7 @@ src/az/rahattv/
   CheckActivity.java     Netflix / Play Market yoxlaması
   SettingsActivity.java  ayarlar, "əsas menyu et"
   Apps.java  Sys.java    tətbiqlər, RAM/yaddaş/şəbəkə, sürətləndirici
+  CrashWatch.java        çökən tətbiqlərin səbəbini tutur və izah edir
   Ui.java  Glyph.java    görünüş (960 vahid enində ekran, pult fokus effekti)
 usb/RahatTV/             fləş kart dəstinin mətnləri
 tools/make_icons.py      ikon və TV banneri

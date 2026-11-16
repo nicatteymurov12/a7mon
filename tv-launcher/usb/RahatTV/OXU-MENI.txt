@@ -74,6 +74,24 @@ TV-nin HDMI girişinə taxılan sertifikatlı TV stick (Google TV / Android TV
 və ya Fire TV). Onda Netflix rəsmi olaraq dəstəklənir.
 
 
+TƏTBİQ AÇILMIR ("... keeps stopping" / "... dayandı")
+----------------------------------------------------
+Bu pəncərəni Android göstərir: tətbiqin özü çökür. Rahat TV 1.1 həmin anda
+səbəbi tutur — "Close app" basandan sonra Rahat TV-nin pəncərəsi çıxır:
+  * Səbəb sadə dildə yazılır (RAM çatmır, APK bu TV üçün deyil, WebView
+    və ya Google Xidmətləri köhnədir, məlumatlar zədələnib və s.)
+  * "Düzəlt" — tətbiq məlumatı: Məcburi dayandır → Keşi təmizlə →
+    lazım olsa Məlumatları təmizlə / Yeniləmələri sil
+  * "Yenilə" — tətbiqi Play Market-də açır
+Bütün xətalar "Yoxlama" bölməsinin "Son xətalar" hissəsində qalır.
+Tətbiqin üstündə MENU → "Açılmır? — səbəb və təmir" də eyni köməyi verir.
+
+YouTube düzəlmirsə: SmartTube — köhnə Android TV-lərdə işləyən pulsuz,
+qeyri-rəsmi YouTube proqramı. APK faylını kompüterdə
+github.com/yuliskov/SmartTube səhifəsindən (Releases) yükləyin, fləşdə
+RahatTV/apps qovluğuna qoyun → Rahat TV → "USB / APK".
+
+
 PLAY MARKET XƏTA VERİRSƏ — ardıcıl edin
 ---------------------------------------
 Rahat TV → "Yoxlama" bölməsində bu addımlar düymə kimi var:

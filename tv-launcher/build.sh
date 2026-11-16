@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="1.0"
+VERSION="1.1"
 ANDROID_JAR="${ANDROID_JAR:-/usr/lib/android-sdk/platforms/android-23/android.jar}"
 KEYSTORE="${KEYSTORE:-keystore/rahattv.jks}"
 KS_PASS="${KS_PASS:-rahattv}"

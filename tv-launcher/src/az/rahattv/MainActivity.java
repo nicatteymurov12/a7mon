@@ -91,6 +91,14 @@ public class MainActivity extends Activity {
             reloadPending = false;
             reload();
         }
+        watchCrashes();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // Android's "X keeps stopping" window takes the focus away from us
+        watchCrashes();
     }
 
     @Override
@@ -98,6 +106,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         handler.removeCallbacks(tick);
+        handler.removeCallbacks(crashPoll);
     }
 
     @Override
@@ -126,6 +135,68 @@ public class MainActivity extends Activity {
     private void goTop() {
         if (scroll != null) scroll.smoothScrollTo(0, 0);
         if (firstFocus != null) firstFocus.requestFocus();
+    }
+
+    // ------------------------------------------------------------------ crashes of other apps
+
+    private int crashPolls;
+    private android.app.AlertDialog crashDialog;
+
+    private void watchCrashes() {
+        crashPolls = 0;
+        handler.removeCallbacks(crashPoll);
+        handler.postDelayed(crashPoll, 250);
+    }
+
+    private final Runnable crashPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing()) return;
+            CrashWatch.Report r = CrashWatch.poll(MainActivity.this);
+            if (r != null) {
+                showRepair(r.pkg, r.label, r, true);
+                return;
+            }
+            // the crash window can appear a moment after we come back
+            if (++crashPolls < 8) handler.postDelayed(this, 600);
+        }
+    };
+
+    /** Explains why an app does not open and offers the fixes Android allows. */
+    private void showRepair(final String pkg, String label, CrashWatch.Report r, boolean justCrashed) {
+        if (crashDialog != null && crashDialog.isShowing()) crashDialog.dismiss();
+        String title;
+        StringBuilder msg = new StringBuilder();
+        if (r != null) {
+            title = label + (r.frozen ? " donub qaldı" : " bağlandı (xəta)");
+            msg.append(CrashWatch.advice(r));
+            if (r.shortMsg != null && r.shortMsg.length() > 0) {
+                msg.append("\n\nXətanın mətni (lazım olsa şəklini çəkin):\n").append(r.shortMsg);
+            }
+            if (!justCrashed) msg.append("\n(").append(CrashWatch.when(r.time)).append(")");
+        } else {
+            title = label + " açılmır?";
+            CrashWatch.Report fake = new CrashWatch.Report();
+            fake.pkg = pkg;
+            msg.append(CrashWatch.advice(fake));
+            msg.append("\n\nTətbiq çökəndə Rahat TV səbəbini avtomatik göstərəcək.");
+        }
+        android.app.AlertDialog.Builder b = Ui.dialog(this)
+                .setTitle(title)
+                .setMessage(msg)
+                .setPositiveButton("Düzəlt", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) { Apps.appInfo(MainActivity.this, pkg); }
+                })
+                .setNegativeButton("Bağla", null);
+        if (Apps.installed(this, Apps.PLAY_STORE)) {
+            b.setNeutralButton("Yenilə", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) { Apps.playStore(MainActivity.this, pkg); }
+            });
+        }
+        try {
+            crashDialog = b.show();
+        } catch (Throwable ignored) {
+        }
     }
 
     private final Runnable tick = new Runnable() {
@@ -261,8 +332,8 @@ public class MainActivity extends Activity {
         clockTv.setGravity(Gravity.END);
         dateTv = Ui.text(this, Sys.date(), 13, Ui.MUTED, false);
         dateTv.setGravity(Gravity.END);
-        right.addView(clockTv);
-        right.addView(dateTv, Ui.lpMargins(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 4, 0, 0));
+        right.addView(clockTv, Ui.lpMargins(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 0, 0, 0));
+        right.addView(dateTv, Ui.lpMargins(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 4, 0, 0));
         h.addView(right);
         return h;
     }
@@ -292,16 +363,7 @@ public class MainActivity extends Activity {
         q.root.setBackground(Ui.gradient(c1, c2, 12));
         boolean tall = height >= 90;
 
-        LinearLayout inner = new LinearLayout(this);
-        inner.setOrientation(tall ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        inner.setGravity(tall ? Gravity.START | Gravity.BOTTOM : Gravity.CENTER_VERTICAL);
-        inner.setPadding(Ui.px(14), Ui.px(tall ? 12 : 8), Ui.px(12), Ui.px(tall ? 12 : 8));
-
         q.icon = Ui.image(this, new Glyph(glyph, 0xFFFFFFFF));
-        float is = tall ? 34 : 28;
-        LinearLayout.LayoutParams ip = Ui.lp(is, is);
-        if (tall) ip.bottomMargin = Ui.px(10); else ip.rightMargin = Ui.px(10);
-        inner.addView(q.icon, ip);
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
@@ -311,11 +373,31 @@ public class MainActivity extends Activity {
         q.sub = Ui.text(this, "", tall ? 12 : 11, 0xCCFFFFFF, false);
         q.sub.setSingleLine(true);
         q.sub.setEllipsize(TextUtils.TruncateAt.END);
-        texts.addView(q.title);
-        texts.addView(q.sub, Ui.lpMargins(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 3, 0, 0));
-        inner.addView(texts);
+        // explicit MATCH_PARENT inside a parent of known width: a wrap_content parent
+        // would squeeze the title down to the subtitle's width ("Par…")
+        texts.addView(q.title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        texts.addView(q.sub, Ui.lpMargins(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 3, 0, 0));
 
-        q.root.addView(inner, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (tall) {
+            // icon pinned to the top, texts to the bottom: nothing can be pushed out of the tile
+            FrameLayout.LayoutParams ip = new FrameLayout.LayoutParams(Ui.px(32), Ui.px(32), Gravity.TOP | Gravity.START);
+            ip.setMargins(Ui.px(14), Ui.px(12), 0, 0);
+            q.root.addView(q.icon, ip);
+            FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.START);
+            tp.setMargins(Ui.px(14), 0, Ui.px(10), Ui.px(10));
+            q.root.addView(texts, tp);
+        } else {
+            LinearLayout inner = new LinearLayout(this);
+            inner.setOrientation(LinearLayout.HORIZONTAL);
+            inner.setGravity(Gravity.CENTER_VERTICAL);
+            inner.setPadding(Ui.px(12), 0, Ui.px(8), 0);
+            LinearLayout.LayoutParams ip = Ui.lp(26, 26);
+            ip.rightMargin = Ui.px(9);
+            inner.addView(q.icon, ip);
+            inner.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            q.root.addView(inner, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
         q.root.setContentDescription(title);
         Ui.focusEffect(q.root, 12, c1, null);
         q.root.setOnClickListener(new View.OnClickListener() {
@@ -531,6 +613,10 @@ public class MainActivity extends Activity {
                 }
             });
         }
+        labels.add("Açılmır? — səbəb və təmir");
+        actions.add(new Runnable() {
+            @Override public void run() { showRepair(e.pkg, e.label, CrashWatch.lastFor(MainActivity.this, e.pkg), false); }
+        });
         labels.add("Tətbiq məlumatı (keşi təmizlə, dayandır)");
         actions.add(new Runnable() { @Override public void run() { Apps.appInfo(MainActivity.this, e.pkg); } });
         labels.add("Bu menyudan gizlət");
