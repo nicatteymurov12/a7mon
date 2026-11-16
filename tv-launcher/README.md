@@ -12,7 +12,7 @@ Köhnə, ağır TV menyusunun yerinə qoyulan yüngül launcher. Firmware-ə tox
 |---|---|
 | Əsas | Netflix, YouTube, Play Market, Brauzer, TV / Mənbə (köhnə menyu, HDMI, antena) |
 | Sürətləndir | Yüklənmiş tətbiqlərin fonda boş işləyən proseslərini dayandırır, RAM boşaldır |
-| USB-dən quraşdır | Fləş kartda `.apk` faylları tapır, Android 7 ilə uyğunluğunu yoxlayır, quraşdırır. XAPK/APKS faylları barədə xəbərdarlıq edir |
+| USB / APK | Fləş kartda `.apk` faylları tapır, Android 7 ilə uyğunluğunu yoxlayır, quraşdırır. XAPK/APKS faylları barədə xəbərdarlıq edir |
 | Yoxlama | Saat, internet, Widevine DRM səviyyəsi (L1/L3), Play Market / Play Xidmətləri / WebView versiyaları, yaddaş, RAM. Hər problemin yanında onu düzəldən düymə var |
 | Sevimlilər, gizlət, sil | Tətbiqin üstündə MENU düyməsini basın və ya OK-nu basılı saxlayın |
 

@@ -199,9 +199,9 @@ public class MainActivity extends Activity {
         // Row 2: tools
         col.addView(Ui.section(this, "Alətlər"), sectionLp());
         LinearLayout r2 = row();
-        quick(r2, "USB-dən quraşdır", Glyph.USB, 0xFF0F766E, 0xFF134E4A, 64, new Runnable() {
+        quick(r2, "USB / APK", Glyph.USB, 0xFF0F766E, 0xFF134E4A, 64, new Runnable() {
             @Override public void run() { Apps.start(MainActivity.this, new Intent(MainActivity.this, UsbActivity.class)); }
-        }).sub.setText("APK faylları");
+        }).sub.setText("Quraşdır");
         quick(r2, "Sürətləndir", Glyph.BOLT, 0xFFD97706, 0xFF92400E, 64, new Runnable() {
             @Override public void run() { boost(); }
         }).sub.setText("RAM təmizlə");

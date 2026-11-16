@@ -8,7 +8,7 @@ menyudur (launcher). Pult ilə rahat idarə olunur və bunları edir:
 
   * Netflix, YouTube, Play Market, Brauzer — böyük düymələrlə bir kliklə
   * "Sürətləndir" — fonda boş yerə işləyən tətbiqləri dayandırıb RAM boşaldır
-  * "USB-dən quraşdır" — fləş kartdakı APK faylları tapır və quraşdırır
+  * "USB / APK" — fləş kartdakı APK faylları tapır və quraşdırır
   * "Yoxlama" — Netflix və Play Market-in niyə xəta verdiyini tapır
     (səhv saat, köhnə Google xidmətləri, az yaddaş, DRM səviyyəsi) və
     düzəltmək üçün lazımi pəncərəni açır
@@ -47,7 +47,7 @@ QURAŞDIRMA (bir dəfə, 5 dəqiqə)
   GERİ (Back)            — ana ekranın yuxarısına qayıtmaq
 
 Yeni tətbiq quraşdırmaq üçün: APK faylını fləş kartda RahatTV/apps
-qovluğuna qoyun → Rahat TV → "USB-dən quraşdır". Rahat TV faylın bu TV-yə
+qovluğuna qoyun → Rahat TV → "USB / APK". Rahat TV faylın bu TV-yə
 uyğun olub-olmadığını (Android 7 ilə işləyirmi) əvvəlcədən göstərir.
 
 
@@ -67,7 +67,7 @@ Netflix Play Market-də görünmürsə (sertifikatsız TV-lərdə tez-tez olur):
     XAPK / APKS / APKM faylları Android 7-də birbaşa quraşdırılmır.
   * Son versiya "daha yeni Android tələb edir" yazırsa, bir az köhnə
     versiyanı götürün.
-  * Faylı RahatTV/apps qovluğuna qoyun → "USB-dən quraşdır".
+  * Faylı RahatTV/apps qovluğuna qoyun → "USB / APK".
 
 Netflix-i tam HD və heç bir xəta olmadan istəyirsinizsə, ən etibarlı yol:
 TV-nin HDMI girişinə taxılan sertifikatlı TV stick (Google TV / Android TV

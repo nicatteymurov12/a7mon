@@ -111,7 +111,8 @@ final class Ui {
         v.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View view, boolean has) {
-                float s = has ? 1.07f : 1f;
+                // tiles grow 7 %, full-width list rows only 2 % so they stay on screen
+                float s = has ? (view.getWidth() > px(400) ? 1.02f : 1.07f) : 1f;
                 view.animate().scaleX(s).scaleY(s).setDuration(130).start();
                 view.setElevation(has ? px(10) : 0);
                 if (view instanceof FrameLayout) {
